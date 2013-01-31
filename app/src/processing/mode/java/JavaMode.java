@@ -100,6 +100,8 @@ public class JavaMode extends Mode {
   public Library getCoreLibrary() {
     if (coreLibrary == null) {
       File coreFolder = Base.getContentFile("core");
+      if(!coreFolder.exists())  
+      coreFolder = new File("/home/quarkninja/Workspaces/processing-workspace/processing/core")  
       coreLibrary = new Library(coreFolder, null);
     }
     return coreLibrary;

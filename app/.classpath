@@ -21,5 +21,6 @@
 	<classpathentry kind="lib" path="lib/apple.jar"/>
 	<classpathentry kind="lib" path="test/lib/junit-4.8.1.jar"/>
 	<classpathentry kind="lib" path="lib/org-netbeans-swing-outline.jar"/>
+	<classpathentry kind="lib" path="/usr/lib/jvm/jdk1.6.0_38/lib/tools.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
