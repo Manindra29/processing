@@ -78,10 +78,9 @@ public class PShader {
   protected HashMap<Integer, UniformValue> uniformValues = null;
 
   protected HashMap<Integer, Texture> textures;
-  protected int firstTexUnit;
-  protected int lastTexUnit;
+  protected HashMap<Integer, Integer> texUnits;
 
-  // Direct buffers to pass shader dat to GL
+  // Direct buffers to pass shader data to GL
   protected IntBuffer intBuffer;
   protected FloatBuffer floatBuffer;
 
@@ -100,8 +99,6 @@ public class PShader {
     glVertex = 0;
     glFragment = 0;
 
-    firstTexUnit = 0;
-
     intBuffer = PGL.allocateIntBuffer(1);
     floatBuffer = PGL.allocateFloatBuffer(1);
 
@@ -109,12 +106,11 @@ public class PShader {
   }
 
 
-
   public PShader(PApplet parent) {
     this();
     this.parent = parent;
     pgMain = (PGraphicsOpenGL) parent.g;
-    pgl = pgMain.pgl;
+    pgl = PGraphicsOpenGL.pgl;
     context = pgl.createEmptyContext();
   }
 
@@ -130,7 +126,7 @@ public class PShader {
   public PShader(PApplet parent, String vertFilename, String fragFilename) {
     this.parent = parent;
     pgMain = (PGraphicsOpenGL) parent.g;
-    pgl = pgMain.pgl;
+    pgl = PGraphicsOpenGL.pgl;
 
     this.vertexURL = null;
     this.fragmentURL = null;
@@ -145,6 +141,7 @@ public class PShader {
     floatBuffer = PGL.allocateFloatBuffer(1);
   }
 
+
   /**
    * @param vertURL network location of the vertex shader
    * @param fragURL network location of the fragment shader
@@ -152,7 +149,7 @@ public class PShader {
   public PShader(PApplet parent, URL vertURL, URL fragURL) {
     this.parent = parent;
     pgMain = (PGraphicsOpenGL) parent.g;
-    pgl = pgMain.pgl;
+    pgl = PGraphicsOpenGL.pgl;
 
     this.vertexURL = vertURL;
     this.fragmentURL = fragURL;
@@ -172,13 +169,13 @@ public class PShader {
   protected void finalize() throws Throwable {
     try {
       if (glVertex != 0) {
-        pgMain.finalizeGLSLVertShaderObject(glVertex, context);
+        PGraphicsOpenGL.finalizeGLSLVertShaderObject(glVertex, context);
       }
       if (glFragment != 0) {
-        pgMain.finalizeGLSLFragShaderObject(glFragment, context);
+        PGraphicsOpenGL.finalizeGLSLFragShaderObject(glFragment, context);
       }
       if (glProgram != 0) {
-        pgMain.finalizeGLSLProgramObject(glProgram, context);
+        PGraphicsOpenGL.finalizeGLSLProgramObject(glProgram, context);
       }
     } finally {
       super.finalize();
@@ -211,10 +208,12 @@ public class PShader {
    */
   public void bind() {
     init();
-    pgl.useProgram(glProgram);
-    bound = true;
-    consumeUniforms();
-    bindTextures();
+    if (!bound) {
+      pgl.useProgram(glProgram);
+      bound = true;
+      consumeUniforms();
+      bindTextures();
+    }
   }
 
 
@@ -222,9 +221,11 @@ public class PShader {
    * Unbinds the shader program.
    */
   public void unbind() {
-    unbindTextures();
-    pgl.useProgram(0);
-    bound = false;
+    if (bound) {
+      unbindTextures();
+      pgl.useProgram(0);
+      bound = false;
+    }
   }
 
 
@@ -520,43 +521,16 @@ public class PShader {
 
 
   protected void setUniformTex(int loc, Texture tex) {
-    // get unit from last value in bindTextures ...
-  //  pgl.activeTexture(PGL.TEXTURE0 + unit);
-    tex.bind();
-  }
-
-
-  /*
-  // The individual attribute setters are not really needed, read this:
-  // http://stackoverflow.com/questions/7718976/what-is-glvertexattrib-versus-glvertexattribpointer-used-for
-  // except for setting a constant vertex attribute value.
-  public void set1FloatAttribute(int loc, float x) {
-    if (-1 < loc) {
-      pgl.glVertexAttrib1f(loc, x);
+    if (texUnits != null) {
+      Integer unit = texUnits.get(loc);
+      if (unit != null) {
+        pgl.activeTexture(PGL.TEXTURE0 + unit);
+        tex.bind();
+      } else {
+        throw new RuntimeException("Cannot find unit for texture " + tex);
+      }
     }
   }
-
-
-  public void set2FloatAttribute(int loc, float x, float y) {
-    if (-1 < loc) {
-      pgl.glVertexAttrib2f(loc, x, y);
-    }
-  }
-
-
-  public void set3FloatAttribute(int loc, float x, float y, float z) {
-    if (-1 < loc) {
-      pgl.glVertexAttrib3f(loc, x, y, z);
-    }
-  }
-
-
-  public void set4FloatAttribute(int loc, float x, float y, float z, float w) {
-    if (-1 < loc) {
-      pgl.glVertexAttrib4f(loc, x, y, z, w);
-    }
-  }
-  */
 
 
   protected void setUniformImpl(String name, int type, Object value) {
@@ -575,7 +549,7 @@ public class PShader {
 
   protected void consumeUniforms() {
     if (uniformValues != null && 0 < uniformValues.size()) {
-      lastTexUnit = firstTexUnit;
+      int unit = 0;
       for (Integer loc: uniformValues.keySet()) {
         UniformValue val = uniformValues.get(loc);
         if (val.type == UniformValue.INT1) {
@@ -649,12 +623,19 @@ public class PShader {
         } else if (val.type == UniformValue.SAMPLER2D) {
           PImage img = (PImage)val.value;
           Texture tex = pgMain.getTexture(img);
-          pgl.uniform1i(loc, lastTexUnit);
-          if (textures == null) {
-            textures = new HashMap<Integer, Texture>();
+
+          if (textures == null) textures = new HashMap<Integer, Texture>();
+          textures.put(loc, tex);
+
+          if (texUnits == null) texUnits = new HashMap<Integer, Integer>();
+          if (texUnits.containsKey(loc)) {
+            unit = texUnits.get(loc);
+            pgl.uniform1i(loc, unit);
+          } else {
+            texUnits.put(loc, unit);
+            pgl.uniform1i(loc, unit);
           }
-          textures.put(lastTexUnit, tex);
-          lastTexUnit++;
+          unit++;
         }
       }
       uniformValues.clear();
@@ -673,32 +654,47 @@ public class PShader {
 
 
   protected void bindTextures() {
-    if (textures != null) {
-      for (int unit: textures.keySet()) {
-        Texture tex = textures.get(unit);
-        pgl.activeTexture(PGL.TEXTURE0 + unit);
-        tex.bind();
+    if (textures != null && texUnits != null) {
+      for (int loc: textures.keySet()) {
+        Texture tex = textures.get(loc);
+        Integer unit = texUnits.get(loc);
+        if (unit != null) {
+          pgl.activeTexture(PGL.TEXTURE0 + unit);
+          tex.bind();
+        } else {
+          throw new RuntimeException("Cannot find unit for texture " + tex);
+        }
       }
     }
   }
 
 
   protected void unbindTextures() {
-    if (textures != null) {
-      for (int unit: textures.keySet()) {
-        Texture tex = textures.get(unit);
-        pgl.activeTexture(PGL.TEXTURE0 + unit);
-        tex.unbind();
+    if (textures != null && texUnits != null) {
+      for (int loc: textures.keySet()) {
+        Texture tex = textures.get(loc);
+        Integer unit = texUnits.get(loc);
+        if (unit != null) {
+          pgl.activeTexture(PGL.TEXTURE0 + unit);
+          tex.unbind();
+        } else {
+          throw new RuntimeException("Cannot find unit for texture " + tex);
+        }
       }
       pgl.activeTexture(PGL.TEXTURE0);
     }
   }
 
 
+  protected int getLastTexUnit() {
+    if (texUnits == null) return -1;
+    else return texUnits.size() - 1;
+  }
+
   protected void init() {
     if (glProgram == 0 || contextIsOutdated()) {
       context = pgl.getCurrentContext();
-      glProgram = pgMain.createGLSLProgramObject(context);
+      glProgram = PGraphicsOpenGL.createGLSLProgramObject(context);
 
       boolean hasVert = false;
       if (vertexFilename != null) {
@@ -761,9 +757,9 @@ public class PShader {
   protected boolean contextIsOutdated() {
     boolean outdated = !pgl.contextIsCurrent(context);
     if (outdated) {
-      pgMain.removeGLSLProgramObject(glProgram, context);
-      pgMain.removeGLSLVertShaderObject(glVertex, context);
-      pgMain.removeGLSLFragShaderObject(glFragment, context);
+      PGraphicsOpenGL.removeGLSLProgramObject(glProgram, context);
+      PGraphicsOpenGL.removeGLSLVertShaderObject(glVertex, context);
+      PGraphicsOpenGL.removeGLSLFragShaderObject(glFragment, context);
 
       glProgram = 0;
       glVertex = 0;
@@ -833,7 +829,7 @@ public class PShader {
    * @param shaderSource a string containing the shader's code
    */
   protected boolean compileVertexShader() {
-    glVertex = pgMain.createGLSLVertShaderObject(context);
+    glVertex = PGraphicsOpenGL.createGLSLVertShaderObject(context);
 
     pgl.shaderSource(glVertex, vertexShaderSource);
     pgl.compileShader(glVertex);
@@ -854,7 +850,7 @@ public class PShader {
    * @param shaderSource a string containing the shader's code
    */
   protected boolean compileFragmentShader() {
-    glFragment = pgMain.createGLSLFragShaderObject(context);
+    glFragment = PGraphicsOpenGL.createGLSLFragShaderObject(context);
 
     pgl.shaderSource(glFragment, fragmentShaderSource);
     pgl.compileShader(glFragment);
@@ -881,17 +877,17 @@ public class PShader {
   protected void loadUniforms() { }
 
 
-  protected void release() {
+  protected void dispose() {
     if (glVertex != 0) {
-      pgMain.deleteGLSLVertShaderObject(glVertex, context);
+      PGraphicsOpenGL.deleteGLSLVertShaderObject(glVertex, context);
       glVertex = 0;
     }
     if (glFragment != 0) {
-      pgMain.deleteGLSLFragShaderObject(glFragment, context);
+      PGraphicsOpenGL.deleteGLSLFragShaderObject(glFragment, context);
       glFragment = 0;
     }
     if (glProgram != 0) {
-      pgMain.deleteGLSLProgramObject(glProgram, context);
+      PGraphicsOpenGL.deleteGLSLProgramObject(glProgram, context);
       glProgram = 0;
     }
   }

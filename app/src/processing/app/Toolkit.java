@@ -21,18 +21,26 @@
 
 package processing.app;
 
-import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontFormatException;
 import java.awt.Frame;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.MediaTracker;
 import java.awt.datatransfer.Clipboard;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.awt.font.FontRenderContext;
+import java.awt.font.TextLayout;
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 
+import javax.swing.ImageIcon;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
@@ -124,19 +132,14 @@ public class Toolkit {
 
   /**
    * Return an Image object from inside the Processing lib folder.
+   * Moved here so that Base can stay headless.
    */
-  static public Image getLibImage(String name, Component who) {
-    Image image = null;
-//    Toolkit tk = Toolkit.getDefaultToolkit();
-
-    File imageLocation = new File(Base.getContentFile("lib"), name);
-    image = java.awt.Toolkit.getDefaultToolkit().getImage(imageLocation.getAbsolutePath());
-    MediaTracker tracker = new MediaTracker(who);
-    tracker.addImage(image, 0);
-    try {
-      tracker.waitForAll();
-    } catch (InterruptedException e) { }
-    return image;
+  static public Image getLibImage(String filename) {
+    File file = Base.getContentFile("lib/" + filename);
+    if (!file.exists()) {
+      return null;
+    }
+    return new ImageIcon(file.getAbsolutePath()).getImage();
   }
 
 
@@ -155,9 +158,9 @@ public class Toolkit {
 
       if (iconImages == null) {
         iconImages = new ArrayList<Image>();
-        final int[] sizes = { 16, 24, 32, 48, 64, 128, 256 };
+        final int[] sizes = { 16, 32, 48, 64, 128, 256, 512 };
         for (int sz : sizes) {
-          iconImages.add(Toolkit.getLibImage("icons/pde-" + sz + ".png", frame));
+          iconImages.add(Toolkit.getLibImage("icons/pde-" + sz + ".png"));
         }
       }
       frame.setIconImages(iconImages);
@@ -216,7 +219,7 @@ public class Toolkit {
 
   static Boolean retinaProp;
 
-  static public boolean isRetina() {
+  static public boolean highResDisplay() {
     if (Base.isMacOS()) {
       // This should probably be reset each time there's a display change.
       // A 5-minute search didn't turn up any such event in the Java API.
@@ -226,10 +229,144 @@ public class Toolkit {
           awtToolkit.getDesktopProperty("apple.awt.contentScaleFactor");
         if (prop != null) {
           retinaProp = prop == 2;
+        } else {
+          retinaProp = false;
         }
       }
       return retinaProp;
     }
     return false;
+  }
+
+
+  // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+
+//  static Font monoFont;
+//  static Font plainFont;
+//  static Font boldFont;
+//
+//
+//  static public Font getMonoFont(int size) {
+//    if (monoFont == null) {
+//      try {
+//        monoFont = createFont("DroidSansMono.ttf", size);
+//      } catch (Exception e) {
+//        monoFont = new Font("Monospaced", Font.PLAIN, size);
+//      }
+//    }
+//    return monoFont;
+//  }
+//
+//
+//  static public Font getPlainFont(int size) {
+//    if (plainFont == null) {
+//      try {
+//        plainFont = createFont("DroidSans.ttf", size);
+//      } catch (Exception e) {
+//        plainFont = new Font("SansSerif", Font.PLAIN, size);
+//      }
+//    }
+//    return plainFont;
+//  }
+//
+//
+//  static public Font getBoldFont(int size) {
+//    if (boldFont == null) {
+//      try {
+//        boldFont = createFont("DroidSans-Bold.ttf", size);
+//      } catch (Exception e) {
+//        boldFont = new Font("SansSerif", Font.BOLD, size);
+//      }
+//    }
+//    return boldFont;
+//  }
+
+
+  static Font monoFont;
+  static Font monoBoldFont;
+  static Font sansFont;
+  static Font sansBoldFont;
+
+
+  static public Font getMonoFont(int size, int style) {
+    if (monoFont == null) {
+      try {
+        monoFont = createFont("SourceCodePro-Regular.ttf", size);
+        monoBoldFont = createFont("SourceCodePro-Semibold.ttf", size);
+      } catch (Exception e) {
+        Base.log("Could not load mono font", e);
+        monoFont = new Font("Monospaced", Font.PLAIN, size);
+        monoBoldFont = new Font("Monospaced", Font.BOLD, size);
+      }
+    }
+    if (style == Font.BOLD) {
+      if (size == monoBoldFont.getSize()) {
+        return monoBoldFont;
+      } else {
+//        System.out.println("deriving new font");
+        return monoBoldFont.deriveFont((float) size);
+      }
+    } else {
+      if (size == monoFont.getSize()) {
+        return monoFont;
+      } else {
+//        System.out.println("deriving new font");
+        return monoFont.deriveFont((float) size);
+      }
+    }
+//    return style == Font.BOLD ?
+//      monoBoldFont.deriveFont((float) size) :
+//      monoFont.deriveFont((float) size);
+  }
+
+
+  static public Font getSansFont(int size, int style) {
+    if (sansFont == null) {
+      try {
+        sansFont = createFont("SourceSansPro-Regular.ttf", size);
+        sansBoldFont = createFont("SourceSansPro-Semibold.ttf", size);
+      } catch (Exception e) {
+        Base.log("Could not load sans font", e);
+        sansFont = new Font("Monospaced", Font.PLAIN, size);
+        sansBoldFont = new Font("Monospaced", Font.BOLD, size);
+      }
+    }
+//    System.out.println("deriving new font");
+//    return style == Font.BOLD ?
+//      sansBoldFont.deriveFont((float) size) :
+//      sansFont.deriveFont((float) size);
+    if (style == Font.BOLD) {
+      if (size == sansBoldFont.getSize()) {
+        return sansBoldFont;
+      } else {
+//        System.out.println("deriving new font");
+        return sansBoldFont.deriveFont((float) size);
+      }
+    } else {
+      if (size == sansFont.getSize()) {
+        return sansFont;
+      } else {
+//        System.out.println("deriving new font");
+        return sansFont.deriveFont((float) size);
+      }
+    }
+  }
+
+
+  static private Font createFont(String filename, int size) throws IOException, FontFormatException {
+    InputStream is = Base.getLibStream("fonts/" + filename);
+    BufferedInputStream input = new BufferedInputStream(is);
+    Font font = Font.createFont(Font.TRUETYPE_FONT, input);
+    input.close();
+    return font.deriveFont((float) size);
+  }
+  
+  
+  static double getAscent(Graphics g) { //, Font font) {
+    Graphics2D g2 = (Graphics2D) g;
+    FontRenderContext frc = g2.getFontRenderContext();
+    //return new TextLayout("H", font, frc).getBounds().getHeight();
+    return new TextLayout("H", g.getFont(), frc).getBounds().getHeight();
   }
 }

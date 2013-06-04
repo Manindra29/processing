@@ -27,10 +27,10 @@ package processing.core;
 import java.awt.*;
 import java.awt.image.*;
 import java.io.*;
-import java.lang.reflect.Method;
 import java.util.Iterator;
 
 import javax.imageio.*;
+import javax.imageio.metadata.*;
 
 
 /**
@@ -54,7 +54,7 @@ import javax.imageio.*;
    *
  * @webref image
  * @usage Web &amp; Application
- * @instanceName img any variable of type PImage
+ * @instanceName img any object of type PImage
  * @see PApplet#loadImage(String)
  * @see PApplet#imageMode(int)
  * @see PApplet#createImage(int, int, int)
@@ -138,6 +138,8 @@ public class PImage implements PConstants, Cloneable {
   protected boolean modified;
   protected int mx1, my1, mx2, my2;
 
+  /** Loaded pixels flag */
+  public boolean loaded = false;
 
   // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
@@ -414,6 +416,10 @@ public class PImage implements PConstants, Cloneable {
 
   public void setModified() {  // ignore
     modified = true;
+    mx1 = 0;
+    my1 = 0;
+    mx2 = width;
+    my2 = height;
   }
 
 
@@ -471,29 +477,13 @@ public class PImage implements PConstants, Cloneable {
     if (pixels == null || pixels.length != width*height) {
       pixels = new int[width*height];
     }
-
-    if (parent != null) {
-      Object cache = parent.g.initCache(this);
-      if (cache != null) {
-        Method loadPixelsMethod = null;
-        try {
-          loadPixelsMethod = cache.getClass().getMethod("loadPixels", new Class[] { int[].class });
-        } catch (Exception e) { }
-
-        if (loadPixelsMethod != null) {
-          try {
-            loadPixelsMethod.invoke(cache, new Object[] { pixels });
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
-        }
-      }
-    }
+    isLoaded();
   }
 
 
   public void updatePixels() {  // ignore
-    updatePixelsImpl(0, 0, width, height);
+//    updatePixelsImpl(0, 0, width, height);
+    updatePixels(0, 0, width, height);
   }
 
 
@@ -529,31 +519,41 @@ public class PImage implements PConstants, Cloneable {
    * @param h height
    */
   public void updatePixels(int x, int y, int w, int h) {  // ignore
-    updatePixelsImpl(x, y, w, h);
-  }
-
-
-  protected void updatePixelsImpl(int x, int y, int w, int h) {
+//    updatePixelsImpl(x, y, w, h);
+//  }
+//
+//
+//  /**
+//   * Broken out as separate impl to signify that the w/y/w/h numbers have
+//   * already been tested and their bounds set properly.
+//   */
+//  protected void updatePixelsImpl(int x, int y, int w, int h) {
     int x2 = x + w;
     int y2 = y + h;
 
     if (!modified) {
       mx1 = PApplet.max(0, x);
-      mx2 = PApplet.min(width - 1, x2);
+      //mx2 = PApplet.min(width - 1, x2);
+      mx2 = PApplet.min(width, x2);
       my1 = PApplet.max(0, y);
-      my2 = PApplet.min(height - 1, y2);
+      //my2 = PApplet.min(height - 1, y2);
+      my2 = PApplet.min(height, y2);
       modified = true;
 
     } else {
       if (x < mx1) mx1 = PApplet.max(0, x);
-      if (x > mx2) mx2 = PApplet.min(width - 1, x);
+      //if (x > mx2) mx2 = PApplet.min(width - 1, x);
+      if (x > mx2) mx2 = PApplet.min(width, x);
       if (y < my1) my1 = PApplet.max(0, y);
-      if (y > my2) my2 = y;
+      //if (y > my2) my2 = y;
+      if (y > my2) my2 = PApplet.min(height, y);
 
       if (x2 < mx1) mx1 = PApplet.max(0, x2);
-      if (x2 > mx2) mx2 = PApplet.min(width - 1, x2);
+      //if (x2 > mx2) mx2 = PApplet.min(width - 1, x2);
+      if (x2 > mx2) mx2 = PApplet.min(width, x2);
       if (y2 < my1) my1 = PApplet.max(0, y2);
-      if (y2 > my2) my2 = PApplet.min(height - 1, y2);
+      //if (y2 > my2) my2 = PApplet.min(height - 1, y2);
+      if (y2 > my2) my2 = PApplet.min(height, y2);
     }
   }
 
@@ -703,6 +703,25 @@ public class PImage implements PConstants, Cloneable {
     return outgoing;
   }
 
+
+  //////////////////////////////////////////////////////////////
+
+  // MARKING IMAGE AS LOADED / FOR USE IN RENDERERS
+
+
+  public boolean isLoaded() { // ignore
+    return loaded;
+  }
+
+
+  public void setLoaded() {  // ignore
+    loaded = true;
+  }
+
+
+  public void setLoaded(boolean l) {  // ignore
+    loaded = l;
+  }
 
 
   //////////////////////////////////////////////////////////////
@@ -895,7 +914,8 @@ public class PImage implements PConstants, Cloneable {
   public void set(int x, int y, int c) {
     if ((x < 0) || (y < 0) || (x >= width) || (y >= height)) return;
     pixels[y*width + x] = c;
-    updatePixelsImpl(x, y, 1, 1);  // slow?
+    //updatePixelsImpl(x, y, 1, 1);  // slow?
+    updatePixels(x, y, 1, 1);  // slow?
   }
 
 
@@ -905,7 +925,7 @@ public class PImage implements PConstants, Cloneable {
    * No variations are employed, meaning that any scale, tint, or imageMode
    * settings will be ignored.
    *
-   * @param img image to draw on screen
+   * @param img image to copy into the original image
    */
   public void set(int x, int y, PImage img) {
     int sx = 0;
@@ -954,7 +974,8 @@ public class PImage implements PConstants, Cloneable {
       targetOffset += width;
     }
 
-    updatePixelsImpl(targetX, targetY, sourceWidth, sourceHeight);
+    //updatePixelsImpl(targetX, targetY, sourceWidth, sourceHeight);
+    updatePixels(targetX, targetY, sourceWidth, sourceHeight);
   }
 
 
@@ -3089,8 +3110,6 @@ public class PImage implements PConstants, Cloneable {
       // JPEG and BMP images that have an alpha channel set get pretty unhappy.
       // BMP just doesn't write, and JPEG writes it as a CMYK image.
       // http://code.google.com/p/processing/issues/detail?id=415
-//      String lower = path.toLowerCase();
-//      if (lower.endsWith("bmp") || lower.endsWith("jpg") || lower.endsWith("jpeg")) {
       if (extension.equals("bmp") || extension.equals("jpg") || extension.equals("jpeg")) {
         outputFormat = BufferedImage.TYPE_INT_RGB;
       }
@@ -3100,30 +3119,42 @@ public class PImage implements PConstants, Cloneable {
 
       File file = new File(path);
 
-      if (extension.equals("jpg") || extension.equals("jpeg")) {
-        ImageWriter writer = null;
-        Iterator<ImageWriter> iter = ImageIO.getImageWritersByFormatName("jpeg");
-        if (iter.hasNext()) {
-          writer = iter.next();
+      ImageWriter writer = null;
+      ImageWriteParam param = null;
+      IIOMetadata metadata = null;
 
+      if (extension.equals("jpg") || extension.equals("jpeg")) {
+        if ((writer = imageioWriter("jpeg")) != null) {
           // Set JPEG quality to 90% with baseline optimization. Setting this
           // to 1 was a huge jump (about triple the size), so this seems good.
-          // Oddly, a smaller file size than Photoshop at 90%, but it's a
-          // completely different algorithm, I suppose.
-          ImageWriteParam param = writer.getDefaultWriteParam();
+          // Oddly, a smaller file size than Photoshop at 90%, but I suppose
+          // it's a completely different algorithm.
+          param = writer.getDefaultWriteParam();
           param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
           param.setCompressionQuality(0.9f);
-
-          BufferedOutputStream output =
-            new BufferedOutputStream(new FileOutputStream(file));
-          writer.setOutput(ImageIO.createImageOutputStream(output));
-          writer.write(null, new IIOImage(bimage, null, null), param);
-          writer.dispose();
-
-          output.flush();
-          output.close();
-          return true;
         }
+      }
+
+      if (extension.equals("png")) {
+        if ((writer = imageioWriter("png")) != null) {
+          param = writer.getDefaultWriteParam();
+          if (false) {
+            metadata = imageioDPI(writer, param, 100);
+          }
+        }
+      }
+
+      if (writer != null) {
+        BufferedOutputStream output =
+          new BufferedOutputStream(PApplet.createOutput(file));
+        writer.setOutput(ImageIO.createImageOutputStream(output));
+//        writer.write(null, new IIOImage(bimage, null, null), param);
+        writer.write(metadata, new IIOImage(bimage, null, metadata), param);
+        writer.dispose();
+
+        output.flush();
+        output.close();
+        return true;
       }
       // If iter.hasNext() somehow fails up top, it falls through to here
       return javax.imageio.ImageIO.write(bimage, extension, file);
@@ -3132,6 +3163,52 @@ public class PImage implements PConstants, Cloneable {
       e.printStackTrace();
       throw new IOException("image save failed.");
     }
+  }
+
+
+  private ImageWriter imageioWriter(String extension) {
+    Iterator<ImageWriter> iter = ImageIO.getImageWritersByFormatName(extension);
+    if (iter.hasNext()) {
+      return iter.next();
+    }
+    return null;
+  }
+
+
+  private IIOMetadata imageioDPI(ImageWriter writer, ImageWriteParam param, double dpi) {
+    // http://stackoverflow.com/questions/321736/how-to-set-dpi-information-in-an-image
+    ImageTypeSpecifier typeSpecifier =
+      ImageTypeSpecifier.createFromBufferedImageType(BufferedImage.TYPE_INT_RGB);
+    IIOMetadata metadata =
+      writer.getDefaultImageMetadata(typeSpecifier, param);
+
+    if (!metadata.isReadOnly() && metadata.isStandardMetadataFormatSupported()) {
+      // for PNG, it's dots per millimeter
+      double dotsPerMilli = dpi / 25.4;
+
+      IIOMetadataNode horiz = new IIOMetadataNode("HorizontalPixelSize");
+      horiz.setAttribute("value", Double.toString(dotsPerMilli));
+
+      IIOMetadataNode vert = new IIOMetadataNode("VerticalPixelSize");
+      vert.setAttribute("value", Double.toString(dotsPerMilli));
+
+      IIOMetadataNode dim = new IIOMetadataNode("Dimension");
+      dim.appendChild(horiz);
+      dim.appendChild(vert);
+
+      IIOMetadataNode root = new IIOMetadataNode("javax_imageio_1.0");
+      root.appendChild(dim);
+
+      try {
+        metadata.mergeTree("javax_imageio_1.0", root);
+        return metadata;
+
+      } catch (IIOInvalidTreeException e) {
+        System.err.println("Could not set the DPI of the output image");
+        e.printStackTrace();
+      }
+    }
+    return null;
   }
 
 

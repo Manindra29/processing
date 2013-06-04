@@ -17,7 +17,7 @@
 
 
 # JARs required from JDK (anywhere in/below the JDK home directory)
-JDKLIBS="rt.jar tools.jar"
+JDKLIBS="rt.jar"
 
 # Set this to non-zero for logging
 LOGGING=0
@@ -104,6 +104,7 @@ cmd_name='processing-java'
 if [ $current_name = $cmd_name ]
 then
     java processing.mode.java.Commander "$@"
+    exit $?
 else
   # Start Processing in the same directory as this script
   if [ "$1" ]; then

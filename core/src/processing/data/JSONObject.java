@@ -34,12 +34,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
-import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.io.Reader;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.Method;
@@ -48,6 +46,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
+
+import processing.core.PApplet;
 
 /**
  * A JSONObject is an unordered collection of name/value pairs. Its external
@@ -102,6 +103,12 @@ import java.util.Map;
  *
  * @author JSON.org
  * @version 2012-12-01
+ * @webref data:composite
+ * @see JSONArray
+ * @see PApplet#loadJSONObject(String)
+ * @see PApplet#loadJSONArray(String)
+ * @see PApplet#saveJSONObject(JSONObject, String)
+ * @see PApplet#saveJSONArray(JSONArray, String)
  */
 public class JSONObject {
   /**
@@ -128,7 +135,6 @@ public class JSONObject {
    * undefined.
    */
   private static final class Null {
-
     /**
      * There is only intended to be a single instance of the NULL object,
      * so the clone method returns itself.
@@ -188,6 +194,7 @@ public class JSONObject {
 
   /**
    * Construct an empty JSONObject.
+   * @nowebref
    */
   public JSONObject() {
     this.map = new HashMap<String, Object>();
@@ -212,6 +219,14 @@ public class JSONObject {
 //      }
 //    }
 //  }
+
+
+  /**
+   * @nowebref
+   */
+  public JSONObject(Reader reader) {
+    this(new JSONTokener(reader));
+  }
 
 
   /**
@@ -289,6 +304,39 @@ public class JSONObject {
           map.put((String) e.getKey(), wrap(value));
         }
       }
+    }
+  }
+
+
+  /**
+   * @nowebref
+   */
+  public JSONObject(IntDict dict) {
+    map = new HashMap<String, Object>();
+    for (int i = 0; i < dict.size(); i++) {
+      setInt(dict.key(i), dict.value(i));
+    }
+  }
+
+
+  /**
+   * @nowebref
+   */
+  public JSONObject(FloatDict dict) {
+    map = new HashMap<String, Object>();
+    for (int i = 0; i < dict.size(); i++) {
+      setFloat(dict.key(i), dict.value(i));
+    }
+  }
+
+
+  /**
+   * @nowebref
+   */
+  public JSONObject(StringDict dict) {
+    map = new HashMap<String, Object>();
+    for (int i = 0; i < dict.size(); i++) {
+      setString(dict.key(i), dict.value(i));
     }
   }
 
@@ -505,11 +553,16 @@ public class JSONObject {
 
 
   /**
-   * Get the string associated with a key.
+   * Gets the String associated with a key
    *
-   * @param key   A key string.
-   * @return      A string which is the value.
-   * @throws   JSONException if there is no string value for the key.
+   * @webref jsonobject:method
+   * @brief Gets the string value associated with a key
+   * @param key a key string
+   * @return A string which is the value.
+   * @throws JSONException if there is no string value for the key.
+   * @see JSONObject#getInt(String)
+   * @see JSONObject#getFloat(String)
+   * @see JSONObject#getBoolean(String)
    */
   public String getString(String key) {
     Object object = this.get(key);
@@ -521,12 +574,17 @@ public class JSONObject {
 
 
   /**
-   * Get the int value associated with a key.
+   * Gets the int value associated with a key
    *
-   * @param key   A key string.
-   * @return      The integer value.
-   * @throws   JSONException if the key is not found or if the value cannot
+   * @webref jsonobject:method
+   * @brief Gets the int value associated with a key
+   * @param key a key string
+   * @return The integer value.
+   * @throws JSONException if the key is not found or if the value cannot
    *  be converted to an integer.
+   * @see JSONObject#getFloat(String)
+   * @see JSONObject#getString(String)
+   * @see JSONObject#getBoolean(String)
    */
   public int getInt(String key) {
     Object object = this.get(key);
@@ -559,7 +617,14 @@ public class JSONObject {
     }
   }
 
-
+  /**
+   * @webref jsonobject:method
+   * @brief Gets the float value associated with a key
+   * @param key a key string
+   * @see JSONObject#getInt(String)
+   * @see JSONObject#getString(String)
+   * @see JSONObject#getBoolean(String)
+   */
   public float getFloat(String key) {
     return (float) getDouble(key);
   }
@@ -587,10 +652,14 @@ public class JSONObject {
   /**
    * Get the boolean value associated with a key.
    *
-   * @param key   A key string.
-   * @return      The truth.
-   * @throws      JSONException
-   *  if the value is not a Boolean or the String "true" or "false".
+   * @webref jsonobject:method
+   * @brief Gets the boolean value associated with a key
+   * @param key a key string
+   * @return The truth.
+   * @throws JSONException if the value is not a Boolean or the String "true" or "false".
+   * @see JSONObject#getInt(String)
+   * @see JSONObject#getFloat(String)
+   * @see JSONObject#getString(String)
    */
   public boolean getBoolean(String key) {
     Object object = this.get(key);
@@ -610,10 +679,14 @@ public class JSONObject {
   /**
    * Get the JSONArray value associated with a key.
    *
-   * @param key   A key string.
-   * @return      A JSONArray which is the value.
-   * @throws      JSONException if the key is not found or
-   *  if the value is not a JSONArray.
+   * @webref jsonobject:method
+   * @brief Gets the JSONArray value associated with a key
+   * @param key a key string
+   * @return A JSONArray which is the value.
+   * @throws JSONException if the key is not found or if the value is not a JSONArray.
+   * @see JSONObject#getJSONObject(String)
+   * @see JSONObject#setJSONObject(String, JSONObject)
+   * @see JSONObject#setJSONArray(String, JSONArray)
    */
   public JSONArray getJSONArray(String key) {
     Object object = this.get(key);
@@ -627,10 +700,14 @@ public class JSONObject {
   /**
    * Get the JSONObject value associated with a key.
    *
-   * @param key   A key string.
-   * @return      A JSONObject which is the value.
-   * @throws      JSONException if the key is not found or
-   *  if the value is not a JSONObject.
+   * @webref jsonobject:method
+   * @brief Gets the JSONObject value associated with a key
+   * @param key a key string
+   * @return A JSONObject which is the value.
+   * @throws JSONException if the key is not found or if the value is not a JSONObject.
+   * @see JSONObject#getJSONArray(String)
+   * @see JSONObject#setJSONObject(String, JSONObject)
+   * @see JSONObject#setJSONArray(String, JSONArray)
    */
   public JSONObject getJSONObject(String key) {
     Object object = this.get(key);
@@ -740,20 +817,20 @@ public class JSONObject {
    *
    * @return An iterator of the keys.
    */
-  public Iterator keys() {
+  public Iterator keyIterator() {
 //    return this.keySet().iterator();
     return map.keySet().iterator();
   }
 
 
-//  /**
-//   * Get a set of keys of the JSONObject.
-//   *
-//   * @return A keySet.
-//   */
-//  public Set keySet() {
-//    return this.map.keySet();
-//  }
+  /**
+   * Get a set of keys of the JSONObject.
+   *
+   * @return A keySet.
+   */
+  public Set keys() {
+    return this.map.keySet();
+  }
 
 
   /**
@@ -1053,6 +1130,15 @@ public class JSONObject {
   }
 
 
+  /**
+   * @webref jsonobject:method
+   * @brief Put a key/String pair in the JSONObject
+   * @param key a key string
+   * @param value the value to assign
+   * @see JSONObject#setInt(String, int)
+   * @see JSONObject#setFloat(String, float)
+   * @see JSONObject#setBoolean(String, boolean)
+   */
   public JSONObject setString(String key, String value) {
     return put(key, value);
   }
@@ -1061,10 +1147,15 @@ public class JSONObject {
   /**
    * Put a key/int pair in the JSONObject.
    *
-   * @param key   A key string.
-   * @param value An int which is the value.
+   * @webref jsonobject:method
+   * @brief Put a key/int pair in the JSONObject
+   * @param key a key string
+   * @param value the value to assign
    * @return this.
    * @throws JSONException If the key is null.
+   * @see JSONObject#setFloat(String, float)
+   * @see JSONObject#setString(String, String)
+   * @see JSONObject#setBoolean(String, boolean)
    */
   public JSONObject setInt(String key, int value) {
     this.put(key, new Integer(value));
@@ -1085,7 +1176,15 @@ public class JSONObject {
     return this;
   }
 
-
+  /**
+   * @webref jsonobject:method
+   * @brief Put a key/float pair in the JSONObject
+   * @param key a key string
+   * @param value the value to assign
+   * @see JSONObject#setInt(String, int)
+   * @see JSONObject#setString(String, String)
+   * @see JSONObject#setBoolean(String, boolean)
+   */
   public JSONObject setFloat(String key, float value) {
     this.put(key, new Double(value));
     return this;
@@ -1109,23 +1208,44 @@ public class JSONObject {
   /**
    * Put a key/boolean pair in the JSONObject.
    *
-   * @param key   A key string.
-   * @param value A boolean which is the value.
+   * @webref jsonobject:method
+   * @brief Put a key/boolean pair in the JSONObject
+   * @param key a key string
+   * @param value the value to assign
    * @return this.
    * @throws JSONException If the key is null.
+   * @see JSONObject#setInt(String, int)
+   * @see JSONObject#setFloat(String, float)
+   * @see JSONObject#setString(String, String)
    */
   public JSONObject setBoolean(String key, boolean value) {
     this.put(key, value ? Boolean.TRUE : Boolean.FALSE);
     return this;
   }
 
-
-  public JSONObject setJSONObject(String key, String value) {
+  /**
+   * @webref jsonobject:method
+   * @brief Sets the JSONObject value associated with a key
+   * @param key a key string
+   * @param value value to assign
+   * @see JSONObject#setJSONArray(String, JSONArray)
+   * @see JSONObject#getJSONObject(String)
+   * @see JSONObject#getJSONArray(String)
+   */
+  public JSONObject setJSONObject(String key, JSONObject value) {
     return put(key, value);
   }
 
-
-  public JSONObject setJSONArray(String key, String value) {
+  /**
+   * @webref jsonobject:method
+   * @brief Sets the JSONArray value associated with a key
+   * @param key a key string
+   * @param value value to assign
+   * @see JSONObject#setJSONObject(String, JSONObject)
+   * @see JSONObject#getJSONObject(String)
+   * @see JSONObject#getJSONArray(String)
+   */
+  public JSONObject setJSONArray(String key, JSONArray value) {
     return put(key, value);
   }
 
@@ -1418,6 +1538,23 @@ public class JSONObject {
 //  }
 
 
+//  protected boolean save(OutputStream output) {
+//    return save(PApplet.createWriter(output));
+//  }
+
+
+  public boolean save(File file, String options) {
+    return write(PApplet.createWriter(file));
+  }
+
+
+  public boolean write(PrintWriter output) {
+    output.print(format(2));
+    output.flush();
+    return true;
+  }
+
+
   /**
    * Return the JSON data formatted with two spaces for indents.
    * Chosen to do this since it's the most common case (e.g. with println()).
@@ -1562,18 +1699,18 @@ public class JSONObject {
   }
 
 
-  /**
-   * Write the contents of the JSONObject as JSON text to a writer.
-   * For compactness, no whitespace is added.
-   * <p>
-   * Warning: This method assumes that the data structure is acyclical.
-   *
-   * @return The writer.
-   * @throws JSONException
-   */
-  protected Writer write(Writer writer) {
-    return this.write(writer, 0, 0);
-  }
+//  /**
+//   * Write the contents of the JSONObject as JSON text to a writer.
+//   * For compactness, no whitespace is added.
+//   * <p>
+//   * Warning: This method assumes that the data structure is acyclical.
+//   *
+//   * @return The writer.
+//   * @throws JSONException
+//   */
+//  protected Writer write(Writer writer) {
+//    return this.write(writer, 0, 0);
+//  }
 
 
   static final Writer writeValue(Writer writer, Object value,
@@ -1631,7 +1768,7 @@ public class JSONObject {
     try {
       boolean commanate = false;
       final int length = this.size();
-      Iterator keys = this.keys();
+      Iterator keys = this.keyIterator();
       writer.write('{');
 
       int actualFactor = (indentFactor == -1) ? 0 : indentFactor;
@@ -1715,379 +1852,379 @@ public class JSONObject {
 //  }
 
 
-  static class JSONTokener {
-    private long    character;
-    private boolean eof;
-    private long    index;
-    private long    line;
-    private char    previous;
-    private Reader  reader;
-    private boolean usePrevious;
-
-
-    /**
-     * Construct a JSONTokener from a Reader.
-     *
-     * @param reader     A reader.
-     */
-    public JSONTokener(Reader reader) {
-      this.reader = reader.markSupported()
-        ? reader
-          : new BufferedReader(reader);
-      this.eof = false;
-      this.usePrevious = false;
-      this.previous = 0;
-      this.index = 0;
-      this.character = 1;
-      this.line = 1;
-    }
-
-
-    /**
-     * Construct a JSONTokener from an InputStream.
-     */
-    public JSONTokener(InputStream inputStream) {
-      this(new InputStreamReader(inputStream));
-    }
-
-
-    /**
-     * Construct a JSONTokener from a string.
-     *
-     * @param s     A source string.
-     */
-    public JSONTokener(String s) {
-      this(new StringReader(s));
-    }
-
-
-    /**
-     * Back up one character. This provides a sort of lookahead capability,
-     * so that you can test for a digit or letter before attempting to parse
-     * the next number or identifier.
-     */
-    public void back() {
-      if (this.usePrevious || this.index <= 0) {
-        throw new RuntimeException("Stepping back two steps is not supported");
-      }
-      this.index -= 1;
-      this.character -= 1;
-      this.usePrevious = true;
-      this.eof = false;
-    }
-
-
-    public boolean end() {
-      return this.eof && !this.usePrevious;
-    }
-
-
-    /**
-     * Determine if the source string still contains characters that next()
-     * can consume.
-     * @return true if not yet at the end of the source.
-     */
-    public boolean more() {
-      this.next();
-      if (this.end()) {
-        return false;
-      }
-      this.back();
-      return true;
-    }
-
-
-    /**
-     * Get the next character in the source string.
-     *
-     * @return The next character, or 0 if past the end of the source string.
-     */
-    public char next() {
-      int c;
-      if (this.usePrevious) {
-        this.usePrevious = false;
-        c = this.previous;
-      } else {
-        try {
-          c = this.reader.read();
-        } catch (IOException exception) {
-          throw new RuntimeException(exception);
-        }
-
-        if (c <= 0) { // End of stream
-          this.eof = true;
-        c = 0;
-        }
-      }
-      this.index += 1;
-      if (this.previous == '\r') {
-        this.line += 1;
-        this.character = c == '\n' ? 0 : 1;
-      } else if (c == '\n') {
-        this.line += 1;
-        this.character = 0;
-      } else {
-        this.character += 1;
-      }
-      this.previous = (char) c;
-      return this.previous;
-    }
-
-
-    /**
-     * Consume the next character, and check that it matches a specified
-     * character.
-     * @param c The character to match.
-     * @return The character.
-     * @throws JSONException if the character does not match.
-     */
-    public char next(char c) {
-      char n = this.next();
-      if (n != c) {
-        throw new RuntimeException("Expected '" + c + "' and instead saw '" + n + "'");
-      }
-      return n;
-    }
-
-
-    /**
-     * Get the next n characters.
-     *
-     * @param n     The number of characters to take.
-     * @return      A string of n characters.
-     * @throws JSONException
-     *   Substring bounds error if there are not
-     *   n characters remaining in the source string.
-     */
-    public String next(int n) {
-      if (n == 0) {
-        return "";
-      }
-
-      char[] chars = new char[n];
-      int pos = 0;
-
-      while (pos < n) {
-        chars[pos] = this.next();
-        if (this.end()) {
-          throw new RuntimeException("Substring bounds error");
-        }
-        pos += 1;
-      }
-      return new String(chars);
-    }
-
-
-    /**
-     * Get the next char in the string, skipping whitespace.
-     * @throws JSONException
-     * @return  A character, or 0 if there are no more characters.
-     */
-    public char nextClean() {
-      for (;;) {
-        char c = this.next();
-        if (c == 0 || c > ' ') {
-          return c;
-        }
-      }
-    }
-
-
-    /**
-     * Return the characters up to the next close quote character.
-     * Backslash processing is done. The formal JSON format does not
-     * allow strings in single quotes, but an implementation is allowed to
-     * accept them.
-     * @param quote The quoting character, either
-     *      <code>"</code>&nbsp;<small>(double quote)</small> or
-     *      <code>'</code>&nbsp;<small>(single quote)</small>.
-     * @return      A String.
-     * @throws JSONException Unterminated string.
-     */
-    public String nextString(char quote) {
-      char c;
-      StringBuffer sb = new StringBuffer();
-      for (;;) {
-        c = this.next();
-        switch (c) {
-        case 0:
-        case '\n':
-        case '\r':
-          throw new RuntimeException("Unterminated string");
-        case '\\':
-          c = this.next();
-          switch (c) {
-          case 'b':
-            sb.append('\b');
-            break;
-          case 't':
-            sb.append('\t');
-            break;
-          case 'n':
-            sb.append('\n');
-            break;
-          case 'f':
-            sb.append('\f');
-            break;
-          case 'r':
-            sb.append('\r');
-            break;
-          case 'u':
-            sb.append((char)Integer.parseInt(this.next(4), 16));
-            break;
-          case '"':
-          case '\'':
-          case '\\':
-          case '/':
-            sb.append(c);
-            break;
-          default:
-            throw new RuntimeException("Illegal escape.");
-          }
-          break;
-        default:
-          if (c == quote) {
-            return sb.toString();
-          }
-          sb.append(c);
-        }
-      }
-    }
-
-
-    /**
-     * Get the text up but not including the specified character or the
-     * end of line, whichever comes first.
-     * @param  delimiter A delimiter character.
-     * @return   A string.
-     */
-    public String nextTo(char delimiter) {
-      StringBuffer sb = new StringBuffer();
-      for (;;) {
-        char c = this.next();
-        if (c == delimiter || c == 0 || c == '\n' || c == '\r') {
-          if (c != 0) {
-            this.back();
-          }
-          return sb.toString().trim();
-        }
-        sb.append(c);
-      }
-    }
-
-
-    /**
-     * Get the text up but not including one of the specified delimiter
-     * characters or the end of line, whichever comes first.
-     * @param delimiters A set of delimiter characters.
-     * @return A string, trimmed.
-     */
-    public String nextTo(String delimiters) {
-      char c;
-      StringBuffer sb = new StringBuffer();
-      for (;;) {
-        c = this.next();
-        if (delimiters.indexOf(c) >= 0 || c == 0 ||
-          c == '\n' || c == '\r') {
-          if (c != 0) {
-            this.back();
-          }
-          return sb.toString().trim();
-        }
-        sb.append(c);
-      }
-    }
-
-
-    /**
-     * Get the next value. The value can be a Boolean, Double, Integer,
-     * JSONArray, JSONObject, Long, or String, or the JSONObject.NULL object.
-     * @throws JSONException If syntax error.
-     *
-     * @return An object.
-     */
-    public Object nextValue() {
-      char c = this.nextClean();
-      String string;
-
-      switch (c) {
-      case '"':
-      case '\'':
-        return this.nextString(c);
-      case '{':
-        this.back();
-        return new JSONObject(this);
-      case '[':
-        this.back();
-        return new JSONArray(this);
-      }
-
-      /*
-       * Handle unquoted text. This could be the values true, false, or
-       * null, or it can be a number. An implementation (such as this one)
-       * is allowed to also accept non-standard forms.
-       *
-       * Accumulate characters until we reach the end of the text or a
-       * formatting character.
-       */
-
-      StringBuffer sb = new StringBuffer();
-      while (c >= ' ' && ",:]}/\\\"[{;=#".indexOf(c) < 0) {
-        sb.append(c);
-        c = this.next();
-      }
-      this.back();
-
-      string = sb.toString().trim();
-      if ("".equals(string)) {
-        throw new RuntimeException("Missing value");
-      }
-      return JSONObject.stringToValue(string);
-    }
-
-
-    /**
-     * Skip characters until the next character is the requested character.
-     * If the requested character is not found, no characters are skipped.
-     * @param to A character to skip to.
-     * @return The requested character, or zero if the requested character
-     * is not found.
-     */
-    public char skipTo(char to) {
-      char c;
-      try {
-        long startIndex = this.index;
-        long startCharacter = this.character;
-        long startLine = this.line;
-        this.reader.mark(1000000);
-        do {
-          c = this.next();
-          if (c == 0) {
-            this.reader.reset();
-            this.index = startIndex;
-            this.character = startCharacter;
-            this.line = startLine;
-            return c;
-          }
-        } while (c != to);
-      } catch (IOException exc) {
-        throw new RuntimeException(exc);
-      }
-
-      this.back();
-      return c;
-    }
-
-
-    /**
-     * Make a printable string of this JSONTokener.
-     *
-     * @return " at {index} [character {character} line {line}]"
-     */
-    @Override
-    public String toString() {
-      return " at " + this.index + " [character " + this.character + " line " +
-        this.line + "]";
-    }
-  }
+//  static class JSONTokener {
+//    private long    character;
+//    private boolean eof;
+//    private long    index;
+//    private long    line;
+//    private char    previous;
+//    private Reader  reader;
+//    private boolean usePrevious;
+//
+//
+//    /**
+//     * Construct a JSONTokener from a Reader.
+//     *
+//     * @param reader     A reader.
+//     */
+//    public JSONTokener(Reader reader) {
+//      this.reader = reader.markSupported()
+//        ? reader
+//          : new BufferedReader(reader);
+//      this.eof = false;
+//      this.usePrevious = false;
+//      this.previous = 0;
+//      this.index = 0;
+//      this.character = 1;
+//      this.line = 1;
+//    }
+//
+//
+//    /**
+//     * Construct a JSONTokener from an InputStream.
+//     */
+//    public JSONTokener(InputStream inputStream) {
+//      this(new InputStreamReader(inputStream));
+//    }
+//
+//
+//    /**
+//     * Construct a JSONTokener from a string.
+//     *
+//     * @param s     A source string.
+//     */
+//    public JSONTokener(String s) {
+//      this(new StringReader(s));
+//    }
+//
+//
+//    /**
+//     * Back up one character. This provides a sort of lookahead capability,
+//     * so that you can test for a digit or letter before attempting to parse
+//     * the next number or identifier.
+//     */
+//    public void back() {
+//      if (this.usePrevious || this.index <= 0) {
+//        throw new RuntimeException("Stepping back two steps is not supported");
+//      }
+//      this.index -= 1;
+//      this.character -= 1;
+//      this.usePrevious = true;
+//      this.eof = false;
+//    }
+//
+//
+//    public boolean end() {
+//      return this.eof && !this.usePrevious;
+//    }
+//
+//
+//    /**
+//     * Determine if the source string still contains characters that next()
+//     * can consume.
+//     * @return true if not yet at the end of the source.
+//     */
+//    public boolean more() {
+//      this.next();
+//      if (this.end()) {
+//        return false;
+//      }
+//      this.back();
+//      return true;
+//    }
+//
+//
+//    /**
+//     * Get the next character in the source string.
+//     *
+//     * @return The next character, or 0 if past the end of the source string.
+//     */
+//    public char next() {
+//      int c;
+//      if (this.usePrevious) {
+//        this.usePrevious = false;
+//        c = this.previous;
+//      } else {
+//        try {
+//          c = this.reader.read();
+//        } catch (IOException exception) {
+//          throw new RuntimeException(exception);
+//        }
+//
+//        if (c <= 0) { // End of stream
+//          this.eof = true;
+//        c = 0;
+//        }
+//      }
+//      this.index += 1;
+//      if (this.previous == '\r') {
+//        this.line += 1;
+//        this.character = c == '\n' ? 0 : 1;
+//      } else if (c == '\n') {
+//        this.line += 1;
+//        this.character = 0;
+//      } else {
+//        this.character += 1;
+//      }
+//      this.previous = (char) c;
+//      return this.previous;
+//    }
+//
+//
+//    /**
+//     * Consume the next character, and check that it matches a specified
+//     * character.
+//     * @param c The character to match.
+//     * @return The character.
+//     * @throws JSONException if the character does not match.
+//     */
+//    public char next(char c) {
+//      char n = this.next();
+//      if (n != c) {
+//        throw new RuntimeException("Expected '" + c + "' and instead saw '" + n + "'");
+//      }
+//      return n;
+//    }
+//
+//
+//    /**
+//     * Get the next n characters.
+//     *
+//     * @param n     The number of characters to take.
+//     * @return      A string of n characters.
+//     * @throws JSONException
+//     *   Substring bounds error if there are not
+//     *   n characters remaining in the source string.
+//     */
+//    public String next(int n) {
+//      if (n == 0) {
+//        return "";
+//      }
+//
+//      char[] chars = new char[n];
+//      int pos = 0;
+//
+//      while (pos < n) {
+//        chars[pos] = this.next();
+//        if (this.end()) {
+//          throw new RuntimeException("Substring bounds error");
+//        }
+//        pos += 1;
+//      }
+//      return new String(chars);
+//    }
+//
+//
+//    /**
+//     * Get the next char in the string, skipping whitespace.
+//     * @throws JSONException
+//     * @return  A character, or 0 if there are no more characters.
+//     */
+//    public char nextClean() {
+//      for (;;) {
+//        char c = this.next();
+//        if (c == 0 || c > ' ') {
+//          return c;
+//        }
+//      }
+//    }
+//
+//
+//    /**
+//     * Return the characters up to the next close quote character.
+//     * Backslash processing is done. The formal JSON format does not
+//     * allow strings in single quotes, but an implementation is allowed to
+//     * accept them.
+//     * @param quote The quoting character, either
+//     *      <code>"</code>&nbsp;<small>(double quote)</small> or
+//     *      <code>'</code>&nbsp;<small>(single quote)</small>.
+//     * @return      A String.
+//     * @throws JSONException Unterminated string.
+//     */
+//    public String nextString(char quote) {
+//      char c;
+//      StringBuffer sb = new StringBuffer();
+//      for (;;) {
+//        c = this.next();
+//        switch (c) {
+//        case 0:
+//        case '\n':
+//        case '\r':
+//          throw new RuntimeException("Unterminated string");
+//        case '\\':
+//          c = this.next();
+//          switch (c) {
+//          case 'b':
+//            sb.append('\b');
+//            break;
+//          case 't':
+//            sb.append('\t');
+//            break;
+//          case 'n':
+//            sb.append('\n');
+//            break;
+//          case 'f':
+//            sb.append('\f');
+//            break;
+//          case 'r':
+//            sb.append('\r');
+//            break;
+//          case 'u':
+//            sb.append((char)Integer.parseInt(this.next(4), 16));
+//            break;
+//          case '"':
+//          case '\'':
+//          case '\\':
+//          case '/':
+//            sb.append(c);
+//            break;
+//          default:
+//            throw new RuntimeException("Illegal escape.");
+//          }
+//          break;
+//        default:
+//          if (c == quote) {
+//            return sb.toString();
+//          }
+//          sb.append(c);
+//        }
+//      }
+//    }
+//
+//
+//    /**
+//     * Get the text up but not including the specified character or the
+//     * end of line, whichever comes first.
+//     * @param  delimiter A delimiter character.
+//     * @return   A string.
+//     */
+//    public String nextTo(char delimiter) {
+//      StringBuffer sb = new StringBuffer();
+//      for (;;) {
+//        char c = this.next();
+//        if (c == delimiter || c == 0 || c == '\n' || c == '\r') {
+//          if (c != 0) {
+//            this.back();
+//          }
+//          return sb.toString().trim();
+//        }
+//        sb.append(c);
+//      }
+//    }
+//
+//
+//    /**
+//     * Get the text up but not including one of the specified delimiter
+//     * characters or the end of line, whichever comes first.
+//     * @param delimiters A set of delimiter characters.
+//     * @return A string, trimmed.
+//     */
+//    public String nextTo(String delimiters) {
+//      char c;
+//      StringBuffer sb = new StringBuffer();
+//      for (;;) {
+//        c = this.next();
+//        if (delimiters.indexOf(c) >= 0 || c == 0 ||
+//          c == '\n' || c == '\r') {
+//          if (c != 0) {
+//            this.back();
+//          }
+//          return sb.toString().trim();
+//        }
+//        sb.append(c);
+//      }
+//    }
+//
+//
+//    /**
+//     * Get the next value. The value can be a Boolean, Double, Integer,
+//     * JSONArray, JSONObject, Long, or String, or the JSONObject.NULL object.
+//     * @throws JSONException If syntax error.
+//     *
+//     * @return An object.
+//     */
+//    public Object nextValue() {
+//      char c = this.nextClean();
+//      String string;
+//
+//      switch (c) {
+//      case '"':
+//      case '\'':
+//        return this.nextString(c);
+//      case '{':
+//        this.back();
+//        return new JSONObject(this);
+//      case '[':
+//        this.back();
+//        return new JSONArray(this);
+//      }
+//
+//      /*
+//       * Handle unquoted text. This could be the values true, false, or
+//       * null, or it can be a number. An implementation (such as this one)
+//       * is allowed to also accept non-standard forms.
+//       *
+//       * Accumulate characters until we reach the end of the text or a
+//       * formatting character.
+//       */
+//
+//      StringBuffer sb = new StringBuffer();
+//      while (c >= ' ' && ",:]}/\\\"[{;=#".indexOf(c) < 0) {
+//        sb.append(c);
+//        c = this.next();
+//      }
+//      this.back();
+//
+//      string = sb.toString().trim();
+//      if ("".equals(string)) {
+//        throw new RuntimeException("Missing value");
+//      }
+//      return JSONObject.stringToValue(string);
+//    }
+//
+//
+//    /**
+//     * Skip characters until the next character is the requested character.
+//     * If the requested character is not found, no characters are skipped.
+//     * @param to A character to skip to.
+//     * @return The requested character, or zero if the requested character
+//     * is not found.
+//     */
+//    public char skipTo(char to) {
+//      char c;
+//      try {
+//        long startIndex = this.index;
+//        long startCharacter = this.character;
+//        long startLine = this.line;
+//        this.reader.mark(1000000);
+//        do {
+//          c = this.next();
+//          if (c == 0) {
+//            this.reader.reset();
+//            this.index = startIndex;
+//            this.character = startCharacter;
+//            this.line = startLine;
+//            return c;
+//          }
+//        } while (c != to);
+//      } catch (IOException exc) {
+//        throw new RuntimeException(exc);
+//      }
+//
+//      this.back();
+//      return c;
+//    }
+//
+//
+//    /**
+//     * Make a printable string of this JSONTokener.
+//     *
+//     * @return " at {index} [character {character} line {line}]"
+//     */
+//    @Override
+//    public String toString() {
+//      return " at " + this.index + " [character " + this.character + " line " +
+//        this.line + "]";
+//    }
+//  }
 }

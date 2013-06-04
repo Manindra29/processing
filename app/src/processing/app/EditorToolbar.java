@@ -3,7 +3,7 @@
 /*
   Part of the Processing project - http://processing.org
 
-  Copyright (c) 2004-10 Ben Fry and Casey Reas
+  Copyright (c) 2004-13 Ben Fry and Casey Reas
   Copyright (c) 2001-04 Massachusetts Institute of Technology
 
   This program is free software; you can redistribute it and/or modify
@@ -24,6 +24,7 @@ package processing.app;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
 import javax.swing.*;
@@ -38,10 +39,10 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
   /** Width of each toolbar button. */
   static final int BUTTON_WIDTH = 27;
   /** Height of each toolbar button. */
-  static final int BUTTON_HEIGHT = 32;
+//  static final int BUTTON_HEIGHT = 32;
   /** The amount of space between groups of buttons on the toolbar. */
   static final int BUTTON_GAP = 5;
-  /** Size of the button image being chopped up. */
+  /** Size (both width and height) of the buttons in the source image. */
   static final int BUTTON_IMAGE_SIZE = 33;
 
   static final int INACTIVE = 0;
@@ -57,22 +58,10 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
 
   Color bgcolor;
 
-//  static Image[][] buttonImages;
-//  int currentRollover;
   protected Button rollover;
 
-//  int buttonCount;
-  /** Current state for this button */
-//  int[] state; // = new int[BUTTON_COUNT];
-  /** Current image for this button's state */
-//  Image[] stateImage;
-//  int which[]; // mapping indices to implementation
-
-//  int x1[], x2[];
-  static final int TOP = 0; 
-  static final int BOTTOM = BUTTON_HEIGHT;
-
   Font statusFont;
+  int statusAscent;
   Color statusColor;
   
   boolean shiftPressed;
@@ -80,42 +69,41 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
   // what the mode indicator looks like
   Color modeButtonColor;
   Font modeTextFont;
+  int modeTextAscent;
   Color modeTextColor;
-  String modeTitle;  // = "JAVA"; //"Java";
-//  String modeTitle = "ANDROID"; //"Java";
+  String modeTitle;
   int modeX1, modeY1;
   int modeX2, modeY2;
   JMenu modeMenu;
   
   protected ArrayList<Button> buttons;
 
+  static final int ARROW_WIDTH = 7;
+  static final int ARROW_HEIGHT = 6;
+  static Image modeArrow;
 
+  
   public EditorToolbar(Editor editor, Base base) {  //, JMenu menu) {
     this.editor = editor;
     this.base = base;
 //    this.menu = menu;
 
     buttons = new ArrayList<Button>();
-//    buttonCount = 0;
-//    which = new int[BUTTON_COUNT];
-
-//    which[buttonCount++] = RUN;
-//    which[buttonCount++] = STOP;
-//    which[buttonCount++] = NEW;
-//    which[buttonCount++] = OPEN;
-//    which[buttonCount++] = SAVE;
-//    which[buttonCount++] = EXPORT;
-
-//    currentRollover = -1;
     rollover = null;
 
     mode = editor.getMode();
     bgcolor = mode.getColor("buttons.bgcolor");
     statusFont = mode.getFont("buttons.status.font");
     statusColor = mode.getColor("buttons.status.color");
-    modeTitle = mode.getTitle().toUpperCase();
+//    modeTitle = mode.getTitle().toUpperCase();
+    modeTitle = mode.getTitle();
     modeTextFont = mode.getFont("mode.button.font");
     modeButtonColor = mode.getColor("mode.button.color");
+
+    if (modeArrow == null) {
+      String suffix = Toolkit.highResDisplay() ? "-2x.png" : ".png";
+      modeArrow = Toolkit.getLibImage("mode-arrow" + suffix);
+    }
 
     addMouseListener(this);
     addMouseMotionListener(this);
@@ -127,30 +115,50 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
 
 
   /**
-   * Only call this from paintComponent, or when the comp is displayable, 
-   * otherwise createImage() might fail.
+   * Load button images and slice them up. Only call this from paintComponent,  
+   * or when the comp is displayable, otherwise createImage() might fail.
+   * (Using BufferedImage instead of createImage() nowadays, so that may 
+   * no longer be relevant.) 
    */
   public Image[][] loadImages() {
-//    Image allButtons = Base.getThemeImage("buttons.gif", this);
-//    Image allButtons = Base.loadImage(file);
-    Image allButtons = mode.loadImage("theme/buttons.gif");
-    int count = allButtons.getWidth(this) / BUTTON_WIDTH;
-//    System.out.println("width is " + allButtons.getWidth(this));
+    int res = Toolkit.highResDisplay() ? 2 : 1;
+    
+    String suffix = null; 
+    Image allButtons = null;
+    // Some modes may not have a 2x version. If a mode doesn't have a 1x 
+    // version, this will cause an error... they should always have 1x.
+    if (res == 2) {
+      suffix = "-2x.png";
+      allButtons = mode.loadImage("theme/buttons" + suffix);
+      if (allButtons == null) {
+        res = 1;  // take him down a notch
+      }
+    }
+    if (res == 1) {
+      suffix = ".png";
+      allButtons = mode.loadImage("theme/buttons" + suffix);
+      if (allButtons == null) {
+        // use the old (pre-2.0b9) file name
+        suffix = ".gif";
+        allButtons = mode.loadImage("theme/buttons" + suffix);
+      }
+    }
+
+    int count = allButtons.getWidth(this) / BUTTON_WIDTH*res;
     Image[][] buttonImages = new Image[count][3];
     
     for (int i = 0; i < count; i++) {
       for (int state = 0; state < 3; state++) {
-//        Toolkit tk = Toolkit.getDefaultToolkit();
-//        Image image = tk.createImage(BUTTON_WIDTH, BUTTON_HEIGHT);
-//        System.out.println("image is " + image + " " + BUTTON_WIDTH + " " + BUTTON_HEIGHT);
-        Image image = createImage(BUTTON_WIDTH, BUTTON_HEIGHT);
+        Image image = new BufferedImage(BUTTON_WIDTH*res, Preferences.GRID_SIZE*res, BufferedImage.TYPE_INT_ARGB);
         Graphics g = image.getGraphics();
         g.drawImage(allButtons, 
-                    -(i*BUTTON_IMAGE_SIZE) - 3, 
-                    (-2 + state)*BUTTON_IMAGE_SIZE, null);
+                    -(i*BUTTON_IMAGE_SIZE*res) - 3, 
+                    (state-2)*BUTTON_IMAGE_SIZE*res, null);
+        g.dispose();
         buttonImages[i][state] = image;
       }
     }
+    
     return buttonImages;
   }
   
@@ -164,28 +172,10 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
       init();
     }
 
-    // this data is shared by all EditorToolbar instances
-//    if (buttonImages == null) {
-//      loadButtons();
-//    }
-
-    // this happens once per instance of EditorToolbar
-//    if (stateImage == null) {
-//      state = new int[buttonCount];
-//      stateImage = new Image[buttonCount];
-//      for (int i = 0; i < buttonCount; i++) {
-//        setState(i, INACTIVE, false);
-//      }
-//      y1 = 0;
-//      y2 = BUTTON_HEIGHT;
-//      x1 = new int[buttonCount];
-//      x2 = new int[buttonCount];
-//    }
-
     Dimension size = getSize();
     if ((offscreen == null) ||
         (size.width != width) || (size.height != height)) {
-      if (Toolkit.isRetina()) {
+      if (Toolkit.highResDisplay()) {
         offscreen = createImage(size.width*2, size.height*2);
       } else {
         offscreen = createImage(size.width, size.height);
@@ -213,7 +203,7 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
     Graphics g = offscreen.getGraphics();    
     Graphics2D g2 = (Graphics2D) g;
     
-    if (Toolkit.isRetina()) {
+    if (Toolkit.highResDisplay()) {
       // scale everything 2x, will be scaled down when drawn to the screen
       g2.scale(2, 2);
     } else {
@@ -224,16 +214,23 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
 
     g.setColor(bgcolor); //getBackground());
     g.fillRect(0, 0, width, height);
+//    if (backgroundImage != null) {
+//      g.drawImage(backgroundImage, 0, 0, BACKGROUND_WIDTH, BACKGROUND_HEIGHT, null);
+//    }
+    mode.drawBackground(g, 0);
 
 //    for (int i = 0; i < buttonCount; i++) {
 //      g.drawImage(stateImage[i], x1[i], y1, null);
 //    }
     for (Button b : buttons) {
-      g.drawImage(b.stateImage, b.left, TOP, BUTTON_WIDTH, BUTTON_HEIGHT, null);
+      g.drawImage(b.stateImage, b.left, 0, BUTTON_WIDTH, Preferences.GRID_SIZE, null);
     }
 
     g.setColor(statusColor);
     g.setFont(statusFont);
+    if (statusAscent == 0) {
+      statusAscent = (int) Toolkit.getAscent(g);
+    }
 
     // If I ever find the guy who wrote the Java2D API, I will hurt him.
 //    Graphics2D g2 = (Graphics2D) g;
@@ -244,40 +241,49 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
 
 //    if (currentRollover != -1) {
     if (rollover != null) {
-      int statusY = (BUTTON_HEIGHT + g.getFontMetrics().getAscent()) / 2;
+      //int statusY = (BUTTON_HEIGHT + g.getFontMetrics().getAscent()) / 2;
+      int statusY = (Preferences.GRID_SIZE + statusAscent) / 2;
       //String status = shiftPressed ? titleShift[currentRollover] : title[currentRollover];
       String status = shiftPressed ? rollover.titleShift : rollover.title;
       g.drawString(status, buttons.size() * BUTTON_WIDTH + 3 * BUTTON_GAP, statusY);
     }
 
-//    Color modeButtonColor;
-//    Font modeTextFont;
-//    Color modeTextColor;
     g.setFont(modeTextFont);
     FontMetrics metrics = g.getFontMetrics();
-    int modeH = metrics.getAscent();
-    int modeW = metrics.stringWidth(modeTitle);
-    final int modeGapH = 6;
-    final int modeGapV = 3;
+    if (modeTextAscent == 0) {
+      modeTextAscent = (int) Toolkit.getAscent(g); //metrics.getAscent();
+    }
+    int modeTextWidth = metrics.stringWidth(modeTitle);
+    final int modeGapWidth = 8;
+    final int modeBoxHeight = 20;
     modeX2 = getWidth() - 16;
-    modeX1 = modeX2 - (modeGapH + modeW + modeGapH);
-    modeY1 = (getHeight() - modeH)/2 - modeGapV;
-    modeY2 = modeY1 + modeH + modeGapV*2;
-//    g.setColor(modeButtonColor);
-//    g.fillRect(modeX1, modeY1, modeX2 - modeX1, modeY2 - modeY1);
-//    g.setColor(modeTextColor);
-//    g.drawString(modeTitle, modeX1 + modeGapH, modeY2 - modeGapV);
+    modeX1 = modeX2 - (modeGapWidth + modeTextWidth + modeGapWidth + ARROW_WIDTH + modeGapWidth);
+//    modeY1 = 8; //(getHeight() - modeBoxHeight) / 2;
+    modeY1 = (getHeight() - modeBoxHeight) / 2;
+    modeY2 = modeY1 + modeBoxHeight; //modeY1 + modeH + modeGapV*2;
     g.setColor(modeButtonColor);
-    g.drawRect(modeX1, modeY1, modeX2 - modeX1, modeY2 - modeY1);
-    g.drawString(modeTitle, modeX1 + modeGapH, modeY2 - modeGapV);
+    g.drawRect(modeX1, modeY1, modeX2 - modeX1, modeY2 - modeY1 - 1);
+    
+    g.drawString(modeTitle, 
+                 modeX1 + modeGapWidth, 
+                 modeY1 + (modeBoxHeight + modeTextAscent) / 2);
+                 //modeY1 + modeTextAscent + (modeBoxHeight - modeTextAscent) / 2);
+    g.drawImage(modeArrow, 
+                modeX2 - ARROW_WIDTH - modeGapWidth, 
+                modeY1 + (modeBoxHeight - ARROW_HEIGHT) / 2, 
+                ARROW_WIDTH, ARROW_HEIGHT, null);
 
+//    g.drawLine(modeX1, modeY2, modeX2, modeY2);
+//    g.drawLine(0, size.height, size.width, size.height);
+//    g.fillRect(modeX1 - modeGapWidth*2,  modeY1, modeGapWidth, modeBoxHeight);
+    
     screen.drawImage(offscreen, 0, 0, size.width, size.height, null);
 
     // dim things out when not enabled (not currently in use) 
-    if (!isEnabled()) {
-      screen.setColor(new Color(0, 0, 0, 100));
-      screen.fillRect(0, 0, getWidth(), getHeight());
-    }
+//    if (!isEnabled()) {
+//      screen.setColor(new Color(0, 0, 0, 100));
+//      screen.fillRect(0, 0, getWidth(), getHeight());
+//    }
   }
 
   
@@ -311,9 +317,8 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
     int y = e.getY();
 
     if (rollover != null) {
-      //        if ((x > x1[currentRollover]) && (y > y1) &&
-      //            (x < x2[currentRollover]) && (y < y2)) {
-      if (y > TOP && y < BOTTOM && x > rollover.left && x < rollover.right) {
+      //if (y > TOP && y < BOTTOM && x > rollover.left && x < rollover.right) {
+      if (y > 0 && y < getHeight() && x > rollover.left && x < rollover.right) {
         // nothing has changed
         return;
 
@@ -383,7 +388,7 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
   private Button findSelection(int x, int y) {
     // if app loads slowly and cursor is near the buttons
     // when it comes up, the app may not have time to load
-    if (offscreen != null && y > TOP && y < BOTTOM) {
+    if (offscreen != null && y > 0 && y < getHeight()) {
       for (Button b : buttons) {
         if (x > b.left && x < b.right) {
           return b;
@@ -498,12 +503,12 @@ public abstract class EditorToolbar extends JComponent implements MouseInputList
 
 
   public Dimension getMinimumSize() {
-    return new Dimension((buttons.size() + 1)*BUTTON_WIDTH, BUTTON_HEIGHT);
+    return new Dimension((buttons.size() + 1)*BUTTON_WIDTH, Preferences.GRID_SIZE);
   }
 
 
   public Dimension getMaximumSize() {
-    return new Dimension(3000, BUTTON_HEIGHT);
+    return new Dimension(3000, Preferences.GRID_SIZE);
   }
 
 

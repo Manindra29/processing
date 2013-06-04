@@ -3,13 +3,12 @@
 /*
   Part of the Processing project - http://processing.org
 
-  Copyright (c) 2004-09 Ben Fry and Casey Reas
+  Copyright (c) 2004-13 Ben Fry and Casey Reas
   Copyright (c) 2001-04 Massachusetts Institute of Technology
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
+  it under the terms of the GNU General Public License version 2
+  as published by the Free Software Foundation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -36,7 +35,8 @@ import java.util.*;
 
 import com.sun.jdi.*;
 import com.sun.jdi.connect.*;
-import com.sun.jdi.event.ExceptionEvent;
+import com.sun.jdi.event.*;
+import com.sun.jdi.request.*;
 
 
 /**
@@ -49,8 +49,7 @@ import com.sun.jdi.event.ExceptionEvent;
  * if you make a bad while() loop, and so on.
  */
 public class Runner implements MessageConsumer {
-
-  private boolean presenting;
+//  private boolean presenting;
 
   // Object that listens for error messages or exceptions.
   protected RunnerListener listener;
@@ -65,26 +64,23 @@ public class Runner implements MessageConsumer {
   protected Thread outThread = null;
 
   // Mode for tracing the Trace program (default= 0 off)
-  protected int debugTraceMode = 0;
+//  protected int debugTraceMode = 0;
 
   //  Do we want to watch assignments to fields
-  protected boolean watchFields = false;
+//  protected boolean watchFields = false;
 
-  // Class patterns for which we don't want events
-  protected String[] excludes = {
-      "java.*", "javax.*", "sun.*", "com.sun.*",
-      "apple.*",
-      "processing.*"
-  };
+//  // Class patterns for which we don't want events
+//  protected String[] excludes = {
+//      "java.*", "javax.*", "sun.*", "com.sun.*",
+//      "apple.*",
+//      "processing.*"
+//  };
 
   protected SketchException exception;
-  //private PrintStream leechErr;
-
   protected Editor editor;
-//  protected Sketch sketch;
   protected JavaBuild build;
-//  private String appletClassName;
-
+  protected Process process;
+  
 
   public Runner(JavaBuild build, RunnerListener listener) throws SketchException {
     this.listener = listener;
@@ -101,40 +97,170 @@ public class Runner implements MessageConsumer {
     int bits = Base.getNativeBits();
     for (Library library : build.getImportedLibraries()) {
       if (!library.supportsArch(PApplet.platform, bits)) {
-        throw new SketchException(library.getName() + " does not run in " + bits + "-bit mode.");
+        System.err.println(library.getName() + " does not run in " + bits + "-bit mode.");
+        int opposite = (bits == 32) ? 64 : 32;
+        if (Base.isMacOS()) {
+          //if (library.supportsArch(PConstants.MACOSX, opposite)) {  // should always be true
+          throw new SketchException("To use " + library.getName() + ", " +  
+                                    "switch to " + opposite + "-bit mode in Preferences.");
+          //}
+        } else {
+          throw new SketchException(library.getName() + " is only compatible " +  
+                                    "with the  " + opposite + "-bit download of Processing.");
+          //throw new SketchException(library.getName() + " does not run in " + bits + "-bit mode.");
+          // "To use this library, switch to 32-bit mode in Preferences." (OS X)
+          //  "To use this library, you must use the 32-bit version of Processing."
+        }
       }
     }
   }
 
 
+  public void launch(boolean presenting) {
+    if (launchVirtualMachine(presenting)) {
+      generateTrace();
+    }
+  }
+  
+  
 //  public void launch(String appletClassName, boolean presenting) {
 //    this.appletClassName = appletClassName;
-  public void launch(boolean presenting) {
-    this.presenting = presenting;
+  public boolean launchVirtualMachine(boolean presenting) {
+//    this.presenting = presenting;
 
-    // all params have to be stored as separate items,
-    // so a growable array needs to be used. i.e. -Xms128m -Xmx1024m
-    // will throw an error if it's shoved into a single array element
-    //Vector params = new Vector();
+    String[] vmParams = getMachineParams();
+    String[] sketchParams = getSketchParams(presenting);
+    int port = 8000 + (int) (Math.random() * 1000);
+    String portStr = String.valueOf(port);
 
-    // get around Apple's Java 1.5 bugs
-    //params.add("/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Commands/java");
-    //params.add("java");
-    //System.out.println("0");
+    // Older (Java 1.5 and earlier) version, go figure
+//    String jdwpArg = "-Xrunjdwp:transport=dt_socket,address=" + portStr + ",server=y,suspend=y";
+//    String debugArg = "-Xdebug"; 
+    // Newer (Java 1.5+) version that uses JVMTI
+    String jdwpArg = "-agentlib:jdwp=transport=dt_socket,address=" + portStr + ",server=y,suspend=y";
 
-    String[] machineParamList = getMachineParams();
-    String[] sketchParamList = getSketchParams();
+    String[] commandArgs = null;
+    if (!Base.isMacOS()) {
+      commandArgs = new String[] {
+        "java", jdwpArg
+      };
+    } else {
+      // Decided to just set this to 1.6 only, because otherwise it's gonna
+      // be a shitshow if folks are getting Apple's 1.6 with 32-bit and
+      // Oracle's 1.7 when run in 64-bit mode. ("Why does my sketch suck in
+      // 64-bit? Why is retina broken?)
+      // The --request flag will prompt to install Apple's 1.6 JVM if none is
+      // available. We're specifying 1.6 so that we can get support for both
+      // 32- and 64-bit, because Oracle won't be releasing Java 1.7 in 32-bit.
+      // Helpfully, the --request flag is not present on Mac OS X 10.6
+      // (luckily it is also not needed, because 1.6 is installed by default)
+      // but it requires an additional workaround to not use that flag,
+      // otherwise will see an error about an unsupported option. The flag is
+      // available with 10.7 and 10.8, the only other supported versions of
+      // OS X at this point, because we require 10.6.8 and higher. That also
+      // means we don't need to check for any other OS versions, the user is 
+      // a douchebag and modifies Info.plist to get around the restriction.
+      if (System.getProperty("os.version").startsWith("10.6")) {
+        commandArgs = new String[] {
+          "/usr/libexec/java_home",
+          "--version", "1.6",
+          "--exec", "java",
+          "-d" + Base.getNativeBits(),
+          jdwpArg
+        };
+      } else {  // for 10.7, 10.8, etc
+        commandArgs = new String[] {
+          "/usr/libexec/java_home",
+          "--request",  // install on-demand
+          "--version", "1.6",
+          "--exec", "java",
+          "-d" + Base.getNativeBits(),
+//          debugArg,
+          jdwpArg
+        };
+      }
+    }
 
-    vm = launchVirtualMachine(machineParamList, sketchParamList);
-    if (vm != null) {
-      generateTrace(null);
-      //redirectStreams(vm);
+    commandArgs = PApplet.concat(commandArgs, vmParams);
+    commandArgs = PApplet.concat(commandArgs, sketchParams);
+//  PApplet.println(commandArgs);
+//  commandArg.setValue(commandArgs);
+    launchJava(commandArgs);
+//    try {
+//      Thread.sleep(2000);
+//    } catch (InterruptedException e) {
+//      e.printStackTrace();
+//    }
 
+//    boolean available = false;
+//    while (!available) {
 //      try {
-//        generateTrace(new PrintWriter("/Users/fry/Desktop/output.txt"));
-//      } catch (Exception e) {
-//        e.printStackTrace();
+//        Socket socket = new Socket((String) null, port);
+////        socket.close();
+//        // this should mean we're all set?
+//        available = true;
+//
+//      } catch (IOException e) {
+//        System.out.println("waiting");
+//        //e.printStackTrace();
+//        try {
+//          Thread.sleep(100);
+//        } catch (InterruptedException e1) {
+//          e1.printStackTrace();
+//        }
 //      }
+//    }
+    
+    AttachingConnector connector = (AttachingConnector) 
+      findConnector("com.sun.jdi.SocketAttach");
+    //PApplet.println(connector);  // gets the defaults
+
+    Map arguments = connector.defaultArguments();
+
+//  Connector.Argument addressArg =
+//    (Connector.Argument)arguments.get("address");
+//  addressArg.setValue(addr);
+    Connector.Argument portArg =
+      (Connector.Argument)arguments.get("port");
+    portArg.setValue(portStr);
+    
+//    Connector.Argument timeoutArg =
+//      (Connector.Argument)arguments.get("timeout");
+//    timeoutArg.setValue("10000");
+
+    //PApplet.println(connector);  // prints the current
+    //com.sun.tools.jdi.AbstractLauncher al;
+    //com.sun.tools.jdi.RawCommandLineLauncher rcll;
+
+    //System.out.println(PApplet.javaVersion);
+    // http://java.sun.com/j2se/1.5.0/docs/guide/jpda/conninv.html#sunlaunch
+    
+    try {
+//      boolean available = false;
+//      while (!available) {
+      while (true) {
+        try {
+          vm = connector.attach(arguments);
+//          vm = connector.attach(arguments);
+          if (vm != null) {
+//            generateTrace();
+//            available = true;
+            return true;
+          }
+        } catch (IOException e) {
+//          System.out.println("waiting");
+//          e.printStackTrace();
+          try {
+            Thread.sleep(100);
+          } catch (InterruptedException e1) {
+            e1.printStackTrace();
+          }
+        }
+      }
+//    } catch (IOException exc) {
+//      throw new Error("Unable to launch target VM: " + exc);
+    } catch (IllegalConnectorArgumentsException exc) {
+      throw new Error("Internal error: " + exc);
     }
   }
 
@@ -185,7 +311,8 @@ public class Runner implements MessageConsumer {
 //        File.pathSeparator +
 //        Base.librariesClassPath);
 
-    // enable assertions - http://dev.processing.org/bugs/show_bug.cgi?id=1188
+    // enable assertions
+    // http://dev.processing.org/bugs/show_bug.cgi?id=1188
     params.add("-ea");
     //PApplet.println(PApplet.split(sketch.classPath, ':'));
 
@@ -210,12 +337,12 @@ public class Runner implements MessageConsumer {
   }
 
 
-  protected String[] getSketchParams() {
+  protected String[] getSketchParams(boolean presenting) {
     ArrayList<String> params = new ArrayList<String>();
 
     // It's dangerous to add your own main() to your code,
     // but if you've done it, we'll respect your right to hang yourself.
-    // http://dev.processing.org/bugs/show_bug.cgi?id=1446
+    // http://processing.org/bugs/bugzilla/1446.html
     if (build.getFoundMain()) {
       params.add(build.getSketchClassName());
 
@@ -290,8 +417,7 @@ public class Runner implements MessageConsumer {
       }
 
       params.add(PApplet.ARGS_DISPLAY + "=" + runDisplay);
-      params.add(PApplet.ARGS_SKETCH_FOLDER + "=" +
-                 build.getSketchPath());
+      
 
       if (presenting) {
         params.add(PApplet.ARGS_FULL_SCREEN);
@@ -305,6 +431,9 @@ public class Runner implements MessageConsumer {
       }
 
       params.add(build.getSketchClassName());
+      params.add(PApplet.ARGS_SKETCH_FOLDER + "=" + build.getSketchPath());
+      // Adding sketch path in the end coz it's likely to
+      // contain spaces and things go wrong on UNIX systems.
     }
 
 //    String outgoing[] = new String[params.size()];
@@ -314,6 +443,59 @@ public class Runner implements MessageConsumer {
   }
 
 
+  protected void launchJava(final String[] args) {
+    new Thread(new Runnable() {
+      public void run() {
+//        PApplet.println("java starting");
+        process = PApplet.exec(args);
+        try {
+//          PApplet.println("java waiting");
+          int result = process.waitFor();
+//          PApplet.println("java done waiting");
+          if (result != 0) {
+            String[] errorStrings = PApplet.loadStrings(process.getErrorStream());
+            String[] inputStrings = PApplet.loadStrings(process.getInputStream());
+            
+//            PApplet.println("launchJava stderr:");
+//            PApplet.println(errorStrings);
+//            PApplet.println("launchJava stdout:");
+            PApplet.println(inputStrings);
+            
+            if (errorStrings != null && errorStrings.length > 1) {
+              if (errorStrings[0].indexOf("Invalid maximum heap size") != -1) {
+                Base.showWarning("Way Too High",
+                                 "Please lower the value for \u201Cmaximum available memory\u201D in the\n" +
+                                 "Preferences window. For more information, read Help \u2192 Troubleshooting.", null);
+              } else {
+                for (String err : errorStrings) {
+                  System.err.println(err);
+                }
+                System.err.println("Using startup command: " + PApplet.join(args, " "));
+              }
+            } else {
+              //exc.printStackTrace();
+              System.err.println("Could not run the sketch (Target VM failed to initialize).");
+              if (Preferences.getBoolean("run.options.memory")) {
+                // Only mention this if they've even altered the memory setup
+                System.err.println("Make sure that you haven't set the maximum available memory too high.");
+              }
+              System.err.println("For more information, read revisions.txt and Help \u2192 Troubleshooting.");
+            }
+            // changing this to separate editor and listener [091124]
+            //if (editor != null) {
+            listener.statusError("Could not run the sketch.");
+            //}
+//            return null;
+          }
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+    }).start();
+  }
+
+
+  /*
   protected VirtualMachine launchVirtualMachine(String[] vmParams,
                                                 String[] classParams) {
     //vm = launchTarget(sb.toString());
@@ -329,16 +511,14 @@ public class Runner implements MessageConsumer {
     // Using localhost instead of 127.0.0.1 sometimes causes a
     // "Transport Error 202" error message when trying to run.
     // http://dev.processing.org/bugs/show_bug.cgi?id=895
-    String addr = "127.0.0.1:" + (8000 + (int) (Math.random() * 1000));
+    // String addr = "127.0.0.1:" + (8000 + (int) (Math.random() * 1000));
     //String addr = "localhost:" + (8000 + (int) (Math.random() * 1000));
-    //String addr = "" + (8000 + (int) (Math.random() * 1000));
+    // Better yet, host is not needed, so using just the port for the address
+    String addr = "" + (8000 + (int) (Math.random() * 1000));
 
     String commandArgs =
       "java -Xrunjdwp:transport=dt_socket,address=" + addr + ",suspend=y ";
-    if (Base.isWindows()) {
-      commandArgs =
-        "java -Xrunjdwp:transport=dt_shmem,address=" + addr + ",suspend=y ";
-    } else if (Base.isMacOS()) {
+    if (Base.isMacOS()) {
       // Decided to just set this to 1.6 only, because otherwise it's gonna
       // be a shitshow if folks are getting Apple's 1.6 with 32-bit and
       // Oracle's 1.7 when run in 64-bit mode. ("Why does my sketch suck in
@@ -372,6 +552,7 @@ public class Runner implements MessageConsumer {
         commandArgs = addArgument(commandArgs, classParams[i], ' ');
       }
     }
+    System.out.println("commandArgs is " + commandArgs);
     commandArg.setValue(commandArgs);
 
     Connector.Argument addressArg =
@@ -394,7 +575,8 @@ public class Runner implements MessageConsumer {
       Process p = exc.process();
       //System.out.println(p);
       String[] errorStrings = PApplet.loadStrings(p.getErrorStream());
-      /*String[] inputStrings =*/ PApplet.loadStrings(p.getInputStream());
+      //String[] inputStrings = 
+        PApplet.loadStrings(p.getInputStream());
 
       if (errorStrings != null && errorStrings.length > 1) {
         if (errorStrings[0].indexOf("Invalid maximum heap size") != -1) {
@@ -445,30 +627,19 @@ public class Runner implements MessageConsumer {
         char c = argument.charAt(i);
         if (c == '"') {
           buffer.append('\\');
+//          buffer.append("\\\\");
         }
         buffer.append(c);
       }
-      buffer.append('\"');
+      buffer.append('"');
       buffer.append(sep);
       return buffer.toString();
+      
     } else {
       return string + argument + String.valueOf(sep);
     }
   }
-
-
-//  /**
-//   * Redirect a VMs output and error streams to System.out and System.err
-//   *
-//   * @param vm the VM
-//   */
-//  protected void redirectStreams(VirtualMachine vm) {
-//    MessageSiphon ms = new MessageSiphon(vm.process().getErrorStream(), this);
-//    errThread = ms.getThread();
-//    outThread = new StreamRedirectThread("VM output reader", vm.process().getInputStream(), System.out);
-//    errThread.start();
-//    outThread.start();
-//  }
+  */
 
 
   /**
@@ -477,50 +648,94 @@ public class Runner implements MessageConsumer {
    * start threads to forward remote error and output streams,
    * resume the remote VM, wait for the final event, and shutdown.
    */
-  protected void generateTrace(PrintWriter writer) {
-    vm.setDebugTraceMode(debugTraceMode);
+  protected void generateTrace() {
+    //vm.setDebugTraceMode(debugTraceMode);
+//    vm.setDebugTraceMode(VirtualMachine.TRACE_ALL);
+//    vm.setDebugTraceMode(VirtualMachine.TRACE_NONE);  // formerly, seems to have no effect
 
-    EventThread eventThread = null;
-    //if (writer != null) {
-    eventThread = new EventThread(this, vm, excludes, writer);
+    // For internal debugging
+    PrintWriter writer = null;
+    
+    // Calling this seems to set something internally to make the 
+    // Eclipse JDI wake up. Without it, an ObjectCollectedException
+    // is thrown on excReq.enable(). No idea why this works, 
+    // but at least exception handling has returned. (Suspect that it may 
+    // block until all or at least some threads are available, meaning 
+    // that the app has launched and we have legit objects to talk to). 
+    vm.allThreads();
+    // The bug may not have been noticed because the test suite waits for 
+    // a thread to be available, and queries it by calling allThreads(). 
+    // See org.eclipse.debug.jdi.tests.AbstractJDITest for the example.
+    
+    EventRequestManager mgr = vm.eventRequestManager();
+    // get only the uncaught exceptions
+    ExceptionRequest excReq = mgr.createExceptionRequest(null, false, true);
+//    System.out.println(excReq);
+    // this version reports all exceptions, caught or uncaught
+//  ExceptionRequest excReq = mgr.createExceptionRequest(null, true, true);
+    // suspend so we can step
+    excReq.setSuspendPolicy(EventRequest.SUSPEND_ALL);
+//    excReq.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+//    excReq.setSuspendPolicy(EventRequest.SUSPEND_NONE);  // another option?
+    excReq.enable();
+    
+    Thread eventThread = new Thread() {
+      public void run() {
+        try {
+          boolean connected = true;
+          while (connected) {
+            EventQueue eventQueue = vm.eventQueue();
+            // remove() blocks until event(s) available
+            EventSet eventSet = eventQueue.remove();  
+//            listener.vmEvent(eventSet);
+
+            for (Event event : eventSet) {
+//              System.out.println("EventThread.handleEvent -> " + event);
+              if (event instanceof ExceptionEvent) {
+//                for (ThreadReference thread : vm.allThreads()) {
+//                  System.out.println("thread : " + thread);
+////                  thread.suspend();
+//                }
+                exceptionEvent((ExceptionEvent) event);
+              } else if (event instanceof VMDisconnectEvent) {
+                connected = false;
+              } 
+            }
+          }
+//        } catch (VMDisconnectedException e) {
+//          Logger.getLogger(VMEventReader.class.getName()).log(Level.INFO, "VMEventReader quit on VM disconnect");
+        } catch (Exception e) {
+          System.err.println("crashed in event thread due to " + e.getMessage());
+//          Logger.getLogger(VMEventReader.class.getName()).log(Level.SEVERE, "VMEventReader quit", e);
+          e.printStackTrace();
+        }
+      }
+    };
     eventThread.start();
-    eventThread.setEventRequests(watchFields);
-    //}
 
-    //redirectOutput();
+    
+    errThread = 
+      new MessageSiphon(process.getErrorStream(), this).getThread();
 
-    Process process = vm.process();
-
-//  processInput = new SystemOutSiphon(process.getInputStream());
-//  processError = new MessageSiphon(process.getErrorStream(), this);
-
-    // Copy target's output and error to our output and error.
-//    errThread = new StreamRedirectThread("error reader",
-//        process.getErrorStream(),
-//        System.err);
-    MessageSiphon ms = new MessageSiphon(process.getErrorStream(), this);
-    errThread = ms.getThread();
-
-    outThread = new StreamRedirectThread("output reader",
-        process.getInputStream(),
-        System.out);
-
+    outThread = new StreamRedirectThread("JVM stdout Reader",
+                                         process.getInputStream(),
+                                         System.out);
     errThread.start();
     outThread.start();
 
     vm.resume();
-    //System.out.println("done with resume");
 
     // Shutdown begins when event thread terminates
     try {
-      if (eventThread != null) eventThread.join();
+      if (eventThread != null) eventThread.join();  // is this the problem?
+      
 //      System.out.println("in here");
       // Bug #852 tracked to this next line in the code.
       // http://dev.processing.org/bugs/show_bug.cgi?id=852
       errThread.join(); // Make sure output is forwarded
 //      System.out.println("and then");
       outThread.join(); // before we exit
-//      System.out.println("out of it");
+//      System.out.println("finished join for errThread and outThread");
 
       // At this point, disable the run button.
       // This happens when the sketch is exited by hitting ESC,
@@ -538,11 +753,12 @@ public class Runner implements MessageConsumer {
 
 
   protected Connector findConnector(String connectorName) {
-    List connectors = Bootstrap.virtualMachineManager().allConnectors();
-//    List connectors =
-//      org.eclipse.jdi.Bootstrap.virtualMachineManager().allConnectors();
+//    List connectors = 
+//      com.sun.jdi.Bootstrap.virtualMachineManager().allConnectors();
+    List connectors =
+      org.eclipse.jdi.Bootstrap.virtualMachineManager().allConnectors();
 
-    // debug: code to list available connectors
+//    // debug: code to list available connectors
 //    Iterator iter2 = connectors.iterator();
 //    while (iter2.hasNext()) {
 //      Connector connector = (Connector)iter2.next();
@@ -560,12 +776,14 @@ public class Runner implements MessageConsumer {
         return connector;
       }
     }
-    throw new Error("No connector");
+    Base.showError("Compiler Error", 
+                   "findConnector() failed to find " + 
+                    connectorName + " inside Runner", null);
+    return null; // Not reachable
   }
 
 
-  public void exception(ExceptionEvent event) {
-//    System.out.println(event);
+  public void exceptionEvent(ExceptionEvent event) {
     ObjectReference or = event.exception();
     ReferenceType rt = or.referenceType();
     String exceptionName = rt.name();
@@ -659,7 +877,7 @@ public class Runner implements MessageConsumer {
    * the location of the error, or if nothing is found, just return with a
    * RunnerException that wraps the error message itself.
    */
-  SketchException findException(String message, ObjectReference or, ThreadReference thread) {
+  protected SketchException findException(String message, ObjectReference or, ThreadReference thread) {
     try {
       // use to dump the stack for debugging
 //      for (StackFrame frame : thread.frames()) {
@@ -693,13 +911,13 @@ public class Runner implements MessageConsumer {
       // it's something that needs to be debugged separately.
       e.printStackTrace();
     }
-    //// before giving up, try to extract from the throwable object itself
-    //// since sometimes exceptions are re-thrown from a different context
+    // before giving up, try to extract from the throwable object itself
+    // since sometimes exceptions are re-thrown from a different context
     try {
-      //// assume object reference is Throwable, get stack trace
+      // assume object reference is Throwable, get stack trace
       Method method = ((ClassType) or.referenceType()).concreteMethodByName("getStackTrace", "()[Ljava/lang/StackTraceElement;");
       ArrayReference result = (ArrayReference) or.invokeMethod(thread, method, new ArrayList<Value>(), ObjectReference.INVOKE_SINGLE_THREADED);
-      //// iterate through stack frames and pull filename and line number for each
+      // iterate through stack frames and pull filename and line number for each
       for (Value val: result.getValues()) {
         ObjectReference ref = (ObjectReference)val;
         method = ((ClassType) ref.referenceType()).concreteMethodByName("getFileName", "()Ljava/lang/String;");
@@ -714,6 +932,14 @@ public class Runner implements MessageConsumer {
           return rex;
         }
       }
+//      for (Method m : ((ClassType) or.referenceType()).allMethods()) {
+//        System.out.println(m + " | " + m.signature() + " | " + m.genericSignature());
+//      }
+      // Implemented for 2.0b9, writes a stack trace when there's an internal error inside core.
+      method = ((ClassType) or.referenceType()).concreteMethodByName("printStackTrace", "()V");
+//      System.err.println("got method " + method);
+      or.invokeMethod(thread, method, new ArrayList<Value>(), ObjectReference.INVOKE_SINGLE_THREADED);
+      
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -743,11 +969,11 @@ public class Runner implements MessageConsumer {
   }
 
 
-  // made synchronized for rev 87
+  // made synchronized for 0087
   // attempted to remove synchronized for 0136 to fix bug #775 (no luck tho)
   // http://dev.processing.org/bugs/show_bug.cgi?id=775
   synchronized public void message(String s) {
-    //System.out.println("M" + s.length() + ":" + s.trim()); // + "MMM" + s.length());
+//    System.out.println("M" + s.length() + ":" + s.trim()); // + "MMM" + s.length());
 
     // this eats the CRLFs on the lines.. oops.. do it later
     //if (s.trim().length() == 0) return;
@@ -784,7 +1010,7 @@ public class Runner implements MessageConsumer {
 //      System.err.println("message " + s.length() + ":" + s);
 //    }
 
-    // always shove out the mesage, since it might not fall under
+    // always shove out the message, since it might not fall under
     // the same setup as we're expecting
     System.err.print(s);
     //System.err.println("[" + s.length() + "] " + s);

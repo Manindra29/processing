@@ -63,7 +63,7 @@ public class InstallCommander implements Tool {
                                       "<html> " +
                                       "<head> <style type=\"text/css\">"+
                                       "b { font: 13pt \"Lucida Grande\" }"+
-                                      "p { font: 11pt \"Lucida Grande\"; margin-top: 8px }"+
+                                      "p { font: 11pt \"Lucida Grande\"; margin-top: 8px; width: 300px }"+
                                       "</style> </head>" +
                                       "<b>" + primary + "</b>" +
                                       "<p>" + secondary + "</p>",
@@ -85,7 +85,15 @@ public class InstallCommander implements Tool {
         "lib/jna.jar",
         "lib/ant.jar",
         "lib/ant-launcher.jar",
-        "core/library/core.jar"
+
+        // extra libraries for new JDI setup
+        "lib/org-netbeans-swing-outline.jar",
+        "lib/com.ibm.icu_4.4.2.v20110823.jar",
+        "lib/jdi.jar",
+        "lib/jdimodel.jar",
+        "lib/org.eclipse.osgi_3.8.1.v20120830-144521.jar",
+
+        "core/library/core.jar"        
       };
       String classPath = PApplet.join(jarList, ":");
 

@@ -42,7 +42,10 @@ import processing.core.PApplet;
  * representing a single node of an XML tree.
  *
  * @webref data:composite
+ * @see PApplet#createXML(String)
  * @see PApplet#loadXML(String)
+ * @see PApplet#parseXML(String)
+ * @see PApplet#saveXML(XML, String)
  */
 public class XML implements Serializable {
 
@@ -58,7 +61,9 @@ public class XML implements Serializable {
   /** Child elements, once loaded. */
   protected XML[] children;
 
-
+  /**
+   * @nowebref
+   */
   protected XML() { }
 
 
@@ -75,27 +80,62 @@ public class XML implements Serializable {
 //    this(parent.createReader(filename));
 //  }
 
+
+  /**
+   * Advanced users only; see loadXML() in PApplet.
+   *
+   * @nowebref
+   */
   public XML(File file) throws IOException, ParserConfigurationException, SAXException {
     this(file, null);
   }
 
 
+  /**
+   * Advanced users only; see loadXML() in PApplet.
+   *
+   * @nowebref
+   */
   public XML(File file, String options) throws IOException, ParserConfigurationException, SAXException {
     this(PApplet.createReader(file), options);
   }
 
-
+  /**
+   * @nowebref
+   */
   public XML(InputStream input) throws IOException, ParserConfigurationException, SAXException {
     this(input, null);
   }
 
 
+  /**
+   * Shouldn't be part of main p5 reference, this is for advanced users.
+   * Note that while it doesn't accept anything but UTF-8, this is preserved
+   * so that we have some chance of implementing that in the future.
+   *
+   * @nowebref
+   */
   public XML(InputStream input, String options) throws IOException, ParserConfigurationException, SAXException {
     this(PApplet.createReader(input), options);
   }
 
 
-  protected XML(Reader reader, String options) throws IOException, ParserConfigurationException, SAXException {
+  /**
+   * Advanced users only; see loadXML() in PApplet.
+   *
+   * @nowebref
+   */
+  public XML(Reader reader) throws IOException, ParserConfigurationException, SAXException {
+    this(reader, null);
+  }
+
+
+  /**
+   * Advanced users only; see loadXML() in PApplet.
+   *
+   * @nowebref
+   */
+  public XML(Reader reader, String options) throws IOException, ParserConfigurationException, SAXException {
     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 
     // Prevent 503 errors from www.w3.org
@@ -138,17 +178,28 @@ public class XML implements Serializable {
   }
 
 
-  // TODO is there a more efficient way of doing this? wow.
-  public XML(String name) throws ParserConfigurationException {
-    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-    DocumentBuilder builder = factory.newDocumentBuilder();
-    Document document = builder.newDocument();
-    node = document.createElement(name);
-//      this.name = name;
-    this.parent = null;
+  /**
+   * @param name description TBD
+   *
+   * @nowebref
+   */
+  public XML(String name) {
+    try {
+      // TODO is there a more efficient way of doing this? wow.
+      DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+      DocumentBuilder builder = factory.newDocumentBuilder();
+      Document document = builder.newDocument();
+      node = document.createElement(name);
+      this.parent = null;
+
+    } catch (ParserConfigurationException pce) {
+      throw new RuntimeException(pce);
+    }
   }
 
-
+  /**
+   * @nowebref
+   */
   protected XML(XML parent, Node node) {
     this.node = node;
     this.parent = parent;
@@ -164,28 +215,35 @@ public class XML implements Serializable {
    * @throws SAXException
    * @throws ParserConfigurationException
    * @throws IOException
+   * @nowebref
    */
   static public XML parse(String data) throws IOException, ParserConfigurationException, SAXException {
     return XML.parse(data, null);
   }
 
-
+  /**
+   * @nowebref
+   */
   static public XML parse(String data, String options) throws IOException, ParserConfigurationException, SAXException {
     return new XML(new StringReader(data), null);
   }
 
 
-  protected boolean save(OutputStream output) {
-    return save(PApplet.createWriter(output));
-  }
+//  protected boolean save(OutputStream output) {
+//    return write(PApplet.createWriter(output));
+//  }
 
 
   public boolean save(File file, String options) {
-    return save(PApplet.createWriter(file));
+    PrintWriter writer = PApplet.createWriter(file);
+    boolean result = write(writer);
+    writer.flush();
+    writer.close();
+    return result;
   }
 
 
-  public boolean save(PrintWriter output) {
+  public boolean write(PrintWriter output) {
     output.print(format(2));
     output.flush();
     return true;
@@ -603,7 +661,7 @@ public class XML implements Serializable {
 
   /**
    * @webref xml:method
-   * @brief Gets the content of an element as a String
+   * @brief Gets the content of an attribute as a String
    */
   public String getString(String name) {
     return getString(name, null);
@@ -618,7 +676,7 @@ public class XML implements Serializable {
 
   /**
    * @webref xml:method
-   * @brief Sets the content of an element as a String
+   * @brief Sets the content of an attribute as a String
    */
   public void setString(String name, String value) {
     ((Element) node).setAttribute(name, value);
@@ -627,7 +685,7 @@ public class XML implements Serializable {
 
   /**
    * @webref xml:method
-   * @brief Gets the content of an element as an int
+   * @brief Gets the content of an attribute as an int
    */
   public int getInt(String name) {
     return getInt(name, 0);
@@ -636,7 +694,7 @@ public class XML implements Serializable {
 
   /**
    * @webref xml:method
-   * @brief Sets the content of an element as an int
+   * @brief Sets the content of an attribute as an int
    */
   public void setInt(String name, int value) {
     setString(name, String.valueOf(value));
@@ -646,9 +704,9 @@ public class XML implements Serializable {
   /**
    * Returns the value of an attribute.
    *
-   * @param name the non-null full name of the attribute.
-   * @param defaultValue the default value of the attribute.
-   * @return the value, or defaultValue if the attribute does not exist.
+   * @param name the non-null full name of the attribute
+   * @param defaultValue the default value of the attribute
+   * @return the value, or defaultValue if the attribute does not exist
    */
   public int getInt(String name, int defaultValue) {
     String value = getString(name);
@@ -682,7 +740,7 @@ public class XML implements Serializable {
    * Returns the value of an attribute, or zero if not present.
    *
    * @webref xml:method
-   * @brief Gets the content of an element as a float
+   * @brief Gets the content of an attribute as a float
    */
   public float getFloat(String name) {
     return getFloat(name, 0);
@@ -704,7 +762,7 @@ public class XML implements Serializable {
 
   /**
    * @webref xml:method
-   * @brief Sets the content of an element as a float
+   * @brief Sets the content of an attribute as a float
    */
   public void setFloat(String name, float value) {
     setString(name, String.valueOf(value));
@@ -719,9 +777,9 @@ public class XML implements Serializable {
   /**
    * Returns the value of an attribute.
    *
-   * @param name the non-null full name of the attribute.
-   * @param defaultValue the default value of the attribute.
-   * @return the value, or defaultValue if the attribute does not exist.
+   * @param name the non-null full name of the attribute
+   * @param defaultValue the default value of the attribute
+   * @return the value, or defaultValue if the attribute does not exist
    */
   public double getDouble(String name, double defaultValue) {
     String value = getString(name);
@@ -743,9 +801,83 @@ public class XML implements Serializable {
    * @webref xml:method
    * @brief Gets the content of an element
    * @return the content.
+   * @see XML#getIntContent()
+   * @see XML#getFloatContent()
    */
   public String getContent() {
     return node.getTextContent();
+  }
+
+
+  /**
+   * @webref xml:method
+   * @brief Gets the content of an element as an int
+   * @return the content.
+   * @see XML#getContent()
+   * @see XML#getFloatContent()
+   */
+  public int getIntContent() {
+    return getIntContent(0);
+  }
+
+
+  /**
+   * @param defaultValue the default value of the attribute
+   */
+  public int getIntContent(int defaultValue) {
+    return PApplet.parseInt(node.getTextContent(), defaultValue);
+  }
+
+
+  /**
+   * @webref xml:method
+   * @brief Gets the content of an element as a float
+   * @return the content.
+   * @see XML#getContent()
+   * @see XML#getIntContent()
+   */
+  public float getFloatContent() {
+    return getFloatContent(0);
+  }
+
+
+  /**
+   * @param defaultValue the default value of the attribute
+   */
+  public float getFloatContent(float defaultValue) {
+    return PApplet.parseFloat(node.getTextContent(), defaultValue);
+  }
+
+
+  public long getLongContent() {
+    return getLongContent(0);
+  }
+
+
+  public long getLongContent(long defaultValue) {
+    String c = node.getTextContent();
+    if (c != null) {
+      try {
+        return Long.parseLong(c);
+      } catch (NumberFormatException nfe) { }
+    }
+    return defaultValue;
+  }
+
+
+  public double getDoubleContent() {
+    return getDoubleContent(0);
+  }
+
+
+  public double getDoubleContent(double defaultValue) {
+    String c = node.getTextContent();
+    if (c != null) {
+      try {
+        return Double.parseDouble(c);
+      } catch (NumberFormatException nfe) { }
+    }
+    return defaultValue;
   }
 
 
@@ -755,6 +887,26 @@ public class XML implements Serializable {
    */
   public void setContent(String text) {
     node.setTextContent(text);
+  }
+
+
+  public void setIntContent(int value) {
+    setContent(String.valueOf(value));
+  }
+
+
+  public void setFloatContent(float value) {
+    setContent(String.valueOf(value));
+  }
+
+
+  public void setLongContent(long value) {
+    setContent(String.valueOf(value));
+  }
+
+
+  public void setDoubleContent(double value) {
+    setContent(String.valueOf(value));
   }
 
 

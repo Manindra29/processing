@@ -805,6 +805,17 @@ public class PGraphics extends PImage implements PConstants {
 
 
   /**
+   * Handle grabbing the focus from the parent applet. Other renderers can
+   * override this if handling needs to be different.
+   */
+  public void requestFocus() {  // ignore
+    if (parent != null) {
+      parent.requestFocusInWindow();
+    }
+  }
+
+
+  /**
    * Some renderers have requirements re: when they are ready to draw.
    */
   public boolean canDraw() {  // ignore
@@ -1130,6 +1141,7 @@ public class PGraphics extends PImage implements PConstants {
    * ( end auto-generated )
    * @webref shape:vertex
    * @param kind Either POINTS, LINES, TRIANGLES, TRIANGLE_FAN, TRIANGLE_STRIP, QUADS, or QUAD_STRIP
+   * @see PShape
    * @see PGraphics#endShape()
    * @see PGraphics#vertex(float, float, float, float, float)
    * @see PGraphics#curveVertex(float, float, float)
@@ -1590,6 +1602,7 @@ public class PGraphics extends PImage implements PConstants {
    * ( end auto-generated )
    * @webref shape:vertex
    * @param mode use CLOSE to close the shape
+   * @see PShape
    * @see PGraphics#beginShape(int)
    */
   public void endShape(int mode) {
@@ -3669,11 +3682,6 @@ public class PGraphics extends PImage implements PConstants {
   }
 
 
-  public Object initCache(PImage img) { // ignore
-    return null;
-  }
-
-
   //////////////////////////////////////////////////////////////
 
   // SHAPE
@@ -3698,6 +3706,7 @@ public class PGraphics extends PImage implements PConstants {
    *
    * @webref shape:loading_displaying
    * @param mode either CORNER, CORNERS, CENTER
+   * @see PShape
    * @see PGraphics#shape(PShape)
    * @see PGraphics#rectMode(int)
    */
@@ -3944,7 +3953,7 @@ public class PGraphics extends PImage implements PConstants {
    * @param which any variable of the type PFont
    * @see PApplet#createFont(String, float, boolean)
    * @see PApplet#loadFont(String)
-   * @see PFont#PFont
+   * @see PFont
    * @see PGraphics#text(String, float, float)
    */
   public void textFont(PFont which) {

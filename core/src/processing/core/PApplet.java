@@ -3,6 +3,7 @@
 /*
   Part of the Processing project - http://processing.org
 
+  Copyright (c) 2012-13 The Processing Foundation
   Copyright (c) 2004-12 Ben Fry and Casey Reas
   Copyright (c) 2001-04 Massachusetts Institute of Technology
 
@@ -1884,8 +1885,8 @@ public class PApplet extends Applet
    * @param w width in pixels
    * @param h height in pixels
    * @param format Either RGB, ARGB, ALPHA (grayscale alpha channel)
-   * @see PImage#PImage
-   * @see PGraphics#PGraphics
+   * @see PImage
+   * @see PGraphics
    */
   public PImage createImage(int w, int h, int format) {
     PImage image = new PImage(w, h, format);
@@ -2153,7 +2154,10 @@ public class PApplet extends Applet
 
             // Changing to this version for 0187
             // http://code.google.com/p/processing/issues/detail?id=279
-            requestFocusInWindow();
+            //requestFocusInWindow();
+
+            // For 2.0, pass this to the renderer, to lend a hand to OpenGL
+            g.requestFocus();
           }
         });
       }
@@ -2736,18 +2740,20 @@ public class PApplet extends Applet
   }
 
 
+  /*
+  // disabling for now; requires Java 1.7 and "precise" semantics are odd...
+  // returns 0.1 for tick-by-tick scrolling on OS X, but it's not a matter of
+  // calling ceil() on the value: 1.5 goes to 1, but 2.3 goes to 2.
+  // "precise" is a whole different animal, so add later API to shore that up.
   static protected Method preciseWheelMethod;
   static {
-//    Class<?> callbackClass = callbackObject.getClass();
-//    Method selectMethod =
-//      callbackClass.getMethod(callbackMethod, new Class[] { File.class });
-//    selectMethod.invoke(callbackObject, new Object[] { selectedFile });
     try {
       preciseWheelMethod = MouseWheelEvent.class.getMethod("getPreciseWheelRotation", new Class[] { });
     } catch (Exception e) {
       // ignored, the method will just be set to null
     }
   }
+  */
 
 
   /**
@@ -2758,7 +2764,7 @@ public class PApplet extends Applet
   protected void nativeMouseEvent(java.awt.event.MouseEvent nativeEvent) {
     // the 'amount' is the number of button clicks for a click event,
     // or the number of steps/clicks on the wheel for a mouse wheel event.
-    float peAmount = nativeEvent.getClickCount();
+    int peCount = nativeEvent.getClickCount();
 
     int peAction = 0;
     switch (nativeEvent.getID()) {
@@ -2783,8 +2789,10 @@ public class PApplet extends Applet
     case java.awt.event.MouseEvent.MOUSE_EXITED:
       peAction = MouseEvent.EXIT;
       break;
-    case java.awt.event.MouseWheelEvent.WHEEL_UNIT_SCROLL:
+    //case java.awt.event.MouseWheelEvent.WHEEL_UNIT_SCROLL:
+    case java.awt.event.MouseEvent.MOUSE_WHEEL:
       peAction = MouseEvent.WHEEL;
+      /*
       if (preciseWheelMethod != null) {
         try {
           peAmount = ((Double) preciseWheelMethod.invoke(nativeEvent, (Object[]) null)).floatValue();
@@ -2792,9 +2800,8 @@ public class PApplet extends Applet
           preciseWheelMethod = null;
         }
       }
-      if (preciseWheelMethod == null) {
-        peAmount = ((MouseWheelEvent) nativeEvent).getWheelRotation();
-      }
+      */
+      peCount = ((MouseWheelEvent) nativeEvent).getWheelRotation();
       break;
     }
 
@@ -2848,7 +2855,7 @@ public class PApplet extends Applet
                              peAction, peModifiers,
                              nativeEvent.getX(), nativeEvent.getY(),
                              peButton,
-                             peAmount));
+                             peCount));
   }
 
 
@@ -3066,10 +3073,19 @@ public class PApplet extends Applet
     mouseExited();
   }
 
-
+  /**
+   * @nowebref
+   */
   public void mouseWheel() { }
 
-
+  /**
+   * The event.getAmount() method returns negative values if the mouse wheel
+   * if rotated up or away from the user and positive in the other direction.
+   * On OS X with "natural" scrolling enabled, the values are opposite.
+   *
+   * @webref input:mouse
+   * @param event the MouseEvent
+   */
   public void mouseWheel(MouseEvent event) {
     mouseWheel();
   }
@@ -5527,7 +5543,7 @@ public class PApplet extends Applet
    *
    * @webref image:loading_displaying
    * @param filename name of file to load, can be .gif, .jpg, .tga, or a handful of other image types depending on your platform
-   * @see PImage#PImage
+   * @see PImage
    * @see PGraphics#image(PImage, float, float, float, float)
    * @see PGraphics#imageMode(int)
    * @see PGraphics#background(float, float, float, float)
@@ -5676,8 +5692,8 @@ public class PApplet extends Applet
    * @webref image:loading_displaying
    * @param filename name of the file to load, can be .gif, .jpg, .tga, or a handful of other image types depending on your platform
    * @param extension the type of image to load, for example "png", "gif", "jpg"
+   * @see PImage
    * @see PApplet#loadImage(String, String)
-   * @see PImage#PImage
    */
   public PImage requestImage(String filename, String extension) {
     PImage vessel = createImage(0, 0, ARGB);
@@ -5874,7 +5890,9 @@ public class PApplet extends Applet
 
     // where "reversed" means upper-left corner (normal for most of
     // the modernized world, but "reversed" for the tga spec)
-    boolean reversed = (header[17] & 0x20) != 0;
+    //boolean reversed = (header[17] & 0x20) != 0;
+    // https://github.com/processing/processing/issues/1682
+    boolean reversed = (header[17] & 0x20) == 0;
 
     if ((header[2] == 2) || (header[2] == 3)) {  // not RLE encoded
       if (reversed) {
@@ -6007,29 +6025,33 @@ public class PApplet extends Applet
 
   // DATA I/O
 
-  /**
-   * @webref input:files
-   * @brief Creates a new XML object
-   * @param name the name to be given to the root element of the new XML object
-   * @return an XML object, or null
-   * @see PApplet#loadXML(String)
-   * @see PApplet#parseXML(String)
-   */
-  public XML createXML(String name) {
-    try {
-      return new XML(name);
-    } catch (Exception e) {
-      e.printStackTrace();
-      return null;
-    }
-  }
+
+//  /**
+//   * @webref input:files
+//   * @brief Creates a new XML object
+//   * @param name the name to be given to the root element of the new XML object
+//   * @return an XML object, or null
+//   * @see XML
+//   * @see PApplet#loadXML(String)
+//   * @see PApplet#parseXML(String)
+//   * @see PApplet#saveXML(XML, String)
+//   */
+//  public XML createXML(String name) {
+//    try {
+//      return new XML(name);
+//    } catch (Exception e) {
+//      e.printStackTrace();
+//      return null;
+//    }
+//  }
+
 
   /**
    * @webref input:files
    * @param filename name of a file in the data folder or a URL.
-   * @see PApplet#createXML(String)
+   * @see XML
    * @see PApplet#parseXML(String)
-   * @see PApplet#saveXML(String)
+   * @see PApplet#saveXML(XML, String)
    * @see PApplet#loadBytes(String)
    * @see PApplet#loadStrings(String)
    * @see PApplet#loadTable(String)
@@ -6038,28 +6060,34 @@ public class PApplet extends Applet
     return loadXML(filename, null);
   }
 
+
   // version that uses 'options' though there are currently no supported options
+  /**
+   * @nowebref
+   */
   public XML loadXML(String filename, String options) {
     try {
-      return new XML(createInput(filename), options);
+      return new XML(createReader(filename), options);
     } catch (Exception e) {
       e.printStackTrace();
       return null;
     }
   }
 
+
   /**
    * @webref input:files
    * @brief Converts String content to an XML object
    * @param data the content to be parsed as XML
    * @return an XML object, or null
-   * @see PApplet#createXML(String)
+   * @see XML
    * @see PApplet#loadXML(String)
-   * @see PApplet#saveXML(String)
+   * @see PApplet#saveXML(XML, String)
    */
   public XML parseXML(String xmlString) {
     return parseXML(xmlString, null);
   }
+
 
   public XML parseXML(String xmlString, String options) {
     try {
@@ -6070,11 +6098,12 @@ public class PApplet extends Applet
     }
   }
 
+
   /**
    * @webref output:files
    * @param xml the XML object to save to disk
    * @param filename name of the file to write to
-   * @see PApplet#createXML(String)
+   * @see XML
    * @see PApplet#loadXML(String)
    * @see PApplet#parseXML(String)
    */
@@ -6082,26 +6111,98 @@ public class PApplet extends Applet
     return saveXML(xml, filename, null);
   }
 
+
   public boolean saveXML(XML xml, String filename, String options) {
     return xml.save(saveFile(filename), options);
   }
 
 
+  public JSONObject parseJSONObject(String input) {
+    return new JSONObject(new StringReader(input));
+  }
 
   /**
    * @webref input:files
-   * @see PApplet#loadTable(String)
-   * @see PApplet#saveTable(Table, String)
+   * @param filename name of a file in the data folder or a URL
+   * @see JSONObject
+   * @see JSONArray
+   * @see PApplet#loadJSONArray(String)
+   * @see PApplet#saveJSONObject(JSONObject, String)
+   * @see PApplet#saveJSONArray(JSONArray, String)
    */
-  public Table createTable() {
-    return new Table();
+  public JSONObject loadJSONObject(String filename) {
+    return new JSONObject(createReader(filename));
   }
+
+  /**
+   * @webref output:files
+   * @see JSONObject
+   * @see JSONArray
+   * @see PApplet#loadJSONObject(String)
+   * @see PApplet#loadJSONArray(String)
+   * @see PApplet#saveJSONArray(JSONArray, String)
+   */
+  public boolean saveJSONObject(JSONObject json, String filename) {
+    return saveJSONObject(json, filename, null);
+  }
+
+
+  public boolean saveJSONObject(JSONObject json, String filename, String options) {
+    return json.save(saveFile(filename), options);
+  }
+
+
+  public JSONArray parseJSONArray(String input) {
+    return new JSONArray(new StringReader(input));
+  }
+
+  /**
+   * @webref input:files
+   * @param filename name of a file in the data folder or a URL
+   * @see JSONObject
+   * @see JSONArray
+   * @see PApplet#loadJSONObject(String)
+   * @see PApplet#saveJSONObject(JSONObject, String)
+   * @see PApplet#saveJSONArray(JSONArray, String)
+   */
+  public JSONArray loadJSONArray(String filename) {
+    return new JSONArray(createReader(filename));
+  }
+
+  /**
+   * @webref output:files
+   * @see JSONObject
+   * @see JSONArray
+   * @see PApplet#loadJSONObject(String)
+   * @see PApplet#loadJSONArray(String)
+   * @see PApplet#saveJSONObject(JSONObject, String)
+   */
+  public boolean saveJSONArray(JSONArray json, String filename) {
+    return saveJSONArray(json, filename, null);
+  }
+
+
+  public boolean saveJSONArray(JSONArray json, String filename, String options) {
+    return json.save(saveFile(filename), options);
+  }
+
+
+
+//  /**
+//   * @webref input:files
+//   * @see Table
+//   * @see PApplet#loadTable(String)
+//   * @see PApplet#saveTable(Table, String)
+//   */
+//  public Table createTable() {
+//    return new Table();
+//  }
 
 
   /**
    * @webref input:files
    * @param filename name of a file in the data folder or a URL.
-   * @see PApplet#createTable()
+   * @see Table
    * @see PApplet#saveTable(Table, String)
    * @see PApplet#loadBytes(String)
    * @see PApplet#loadStrings(String)
@@ -6117,17 +6218,18 @@ public class PApplet extends Applet
    */
   public Table loadTable(String filename, String options) {
     try {
-      String ext = checkExtension(filename);
-      if (ext != null) {
-        if (ext.equals("csv") || ext.equals("tsv") || ext.equals("bin")) {
-          if (options == null) {
-            options = ext;
-          } else {
-            options = ext + "," + options;
-          }
-        }
-      }
-      return new Table(createInput(filename), options);
+//      String ext = checkExtension(filename);
+//      if (ext != null) {
+//        if (ext.equals("csv") || ext.equals("tsv") || ext.equals("bin")) {
+//          if (options == null) {
+//            options = ext;
+//          } else {
+//            options = ext + "," + options;
+//          }
+//        }
+//      }
+      return new Table(createInput(filename),
+                       Table.extensionOptions(true, filename, options));
 
     } catch (IOException e) {
       e.printStackTrace();
@@ -6140,7 +6242,7 @@ public class PApplet extends Applet
    * @webref input:files
    * @param table the Table object to save to a file
    * @param filename the filename to which the Table should be saved
-   * @see PApplet#createTable()
+   * @see Table
    * @see PApplet#loadTable(String)
    */
   public boolean saveTable(Table table, String filename) {
@@ -6152,34 +6254,27 @@ public class PApplet extends Applet
    * @param options can be one of "tsv", "csv", "bin", or "html"
    */
   public boolean saveTable(Table table, String filename, String options) {
-    String ext = checkExtension(filename);
-    if (ext != null) {
-      if (ext.equals("csv") || ext.equals("tsv") || ext.equals("bin") || ext.equals("html")) {
-        if (options == null) {
-          options = ext;
-        } else {
-          options = ext + "," + options;
-        }
-      }
-    }
-    // Figure out location and make sure the target path exists
-    File outputFile = saveFile(filename);
-    // Open a stream and take care of .gz if necessary
-    return table.save(createOutput(outputFile), options);
-  }
+//    String ext = checkExtension(filename);
+//    if (ext != null) {
+//      if (ext.equals("csv") || ext.equals("tsv") || ext.equals("bin") || ext.equals("html")) {
+//        if (options == null) {
+//          options = ext;
+//        } else {
+//          options = ext + "," + options;
+//        }
+//      }
+//    }
 
+    try {
+      // Figure out location and make sure the target path exists
+      File outputFile = saveFile(filename);
+      // Open a stream and take care of .gz if necessary
+      return table.save(outputFile, options);
 
-  protected String checkExtension(String filename) {
-    // Don't consider the .gz as part of the name, createInput()
-    // and createOuput() will take care of fixing that up.
-    if (filename.toLowerCase().endsWith(".gz")) {
-      filename = filename.substring(0, filename.length() - 3);
+    } catch (IOException e) {
+      e.printStackTrace();
+      return false;
     }
-    int index = filename.lastIndexOf('.');
-    if (index == -1) {
-      return null;
-    }
-    return filename.substring(index + 1).toLowerCase();
   }
 
 
@@ -6216,7 +6311,7 @@ public class PApplet extends Applet
    * ( end auto-generated )
   * @webref typography:loading_displaying
   * @param filename name of the font to load
-  * @see PFont#PFont(Font, boolean)
+  * @see PFont
   * @see PGraphics#textFont(PFont, float)
   * @see PApplet#createFont(String, float, boolean, char[])
   */
@@ -6298,7 +6393,7 @@ public class PApplet extends Applet
    * @param size point size of the font
    * @param smooth true for an antialiased font, false for aliased
    * @param charset array containing characters to be generated
-   * @see PFont#PFont
+   * @see PFont
    * @see PGraphics#textFont(PFont, float)
    * @see PGraphics#text(String, float, float, float, float, float)
    * @see PApplet#loadFont(String)
@@ -6569,6 +6664,31 @@ public class PApplet extends Applet
     } catch (NoSuchMethodException nsme) {
       System.err.println(callbackMethod + "() could not be found");
     }
+  }
+
+
+
+  //////////////////////////////////////////////////////////////
+
+  // EXTENSIONS
+
+
+  /**
+   * Get the compression-free extension for this filename.
+   * @param filename The filename to check
+   * @return an extension, skipping past .gz if it's present
+   */
+  static public String checkExtension(String filename) {
+    // Don't consider the .gz as part of the name, createInput()
+    // and createOuput() will take care of fixing that up.
+    if (filename.toLowerCase().endsWith(".gz")) {
+      filename = filename.substring(0, filename.length() - 3);
+    }
+    int dotIndex = filename.lastIndexOf('.');
+    if (dotIndex != -1) {
+      return filename.substring(dotIndex + 1).toLowerCase();
+    }
+    return null;
   }
 
 
@@ -6865,8 +6985,9 @@ public class PApplet extends Applet
       File file = new File(dataPath(filename));
       if (!file.exists()) {
         // next see if it's just in the sketch folder
-        file = new File(sketchPath, filename);
+        file = sketchFile(filename);
       }
+
       if (file.isDirectory()) {
         return null;
       }
@@ -9999,7 +10120,7 @@ public class PApplet extends Applet
       try {
         if (iconImages == null) {
           iconImages = new ArrayList<Image>();
-          final int[] sizes = { 16, 24, 32, 48, 64 };
+          final int[] sizes = { 16, 32, 48, 64 };
 
           for (int sz : sizes) {
             URL url = getClass().getResource("/icon/icon-" + sz + ".png");
@@ -10234,6 +10355,16 @@ public class PApplet extends Applet
         }
       }
       argIndex++;
+    }
+
+    // Now that sketch path is passed in args after the sketch name
+    // it's not set in the above loop(the above loop breaks after
+    // finding sketch name). So setting sketch path here.
+    for (int i = 0; i < args.length; i++) {
+      if(args[i].startsWith(ARGS_SKETCH_FOLDER)){
+        folder = args[i].substring(args[i].indexOf('=') + 1);
+        //System.err.println("SF set " + folder);
+      }
     }
 
     // Set this property before getting into any GUI init code
@@ -10913,6 +11044,7 @@ public class PApplet extends Applet
    * ( end auto-generated )
    * @webref shape:vertex
    * @param kind Either POINTS, LINES, TRIANGLES, TRIANGLE_FAN, TRIANGLE_STRIP, QUADS, or QUAD_STRIP
+   * @see PShape
    * @see PGraphics#endShape()
    * @see PGraphics#vertex(float, float, float, float, float)
    * @see PGraphics#curveVertex(float, float, float)
@@ -11140,6 +11272,7 @@ public class PApplet extends Applet
    * ( end auto-generated )
    * @webref shape:vertex
    * @param mode use CLOSE to close the shape
+   * @see PShape
    * @see PGraphics#beginShape(int)
    */
   public void endShape(int mode) {
@@ -12325,6 +12458,7 @@ public class PApplet extends Applet
    *
    * @webref shape:loading_displaying
    * @param mode either CORNER, CORNERS, CENTER
+   * @see PShape
    * @see PGraphics#shape(PShape)
    * @see PGraphics#rectMode(int)
    */
@@ -12498,7 +12632,7 @@ public class PApplet extends Applet
    * @param which any variable of the type PFont
    * @see PApplet#createFont(String, float, boolean)
    * @see PApplet#loadFont(String)
-   * @see PFont#PFont
+   * @see PFont
    * @see PGraphics#text(String, float, float)
    */
   public void textFont(PFont which) {
@@ -15142,7 +15276,7 @@ public class PApplet extends Applet
    * No variations are employed, meaning that any scale, tint, or imageMode
    * settings will be ignored.
    *
-   * @param img image to draw on screen
+   * @param img image to copy into the original image
    */
   public void set(int x, int y, PImage img) {
     if (recorder != null) recorder.set(x, y, img);

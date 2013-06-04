@@ -1,95 +1,140 @@
-0217 core
-X improve load/save of .gz files with Table, clear up some .bin issues
+0218 core (2.0b10 or 2.0)
+X textureWrap(REPEAT) + textureMode(IMAGE) clamps positive coordinates
+X   https://github.com/processing/processing/issues/1809
+X saveJSONArray() loops forever, triggers error
+X   https://github.com/processing/processing/issues/1827
+X patch to make font textures smaller in P2D/P3D
+X   https://github.com/processing/processing/pull/1775
+X .png data written when .jpg file specified with save/saveFrame()
+X   https://github.com/processing/processing/issues/1810
+X remove() broken in the List classes
+X   https://github.com/processing/processing/issues/1826
+X Java2D surfaces not updating when used with OpenGL
+X   PGraphics using JAVA2D will not update when used with P2D or P3D
+X   https://github.com/processing/processing/issues/1786
+X several additional functions for data classes
+X change to the binary table file format
+X   not backwards compatible, b/c this feature is unannounced
 
 andres
-A lines not properly renderered in P3D when using ortographic projection
-A   https://github.com/processing/processing/issues/1661
+A PImage not drawn after resize()/get() in P2D/P3D
+A   https://github.com/processing/processing/issues/1830
+A Can't disable textures for loaded OBJ shapes (2b9)
+A   https://github.com/processing/processing/issues/1825
+A Can't mask PGraphics with another PGraphics
+A   https://github.com/processing/processing/issues/1738
+A PGL.readPixels() causes "invalid operation" error
+A   https://github.com/processing/processing/issues/1666
+A Strange behavior of PGraphics pixels[] when using P2D and P3D renderer
+A   https://github.com/processing/processing/issues/1815
+A PShape setVertex has a memory leak
+A   https://github.com/processing/processing/issues/1670
+A PGL lacks a wrapper for the alphaFunc() method and the ALPHA_TEST constant
+A   https://github.com/processing/processing/issues/1703
+A Implement textMode(SHAPE) for 3D
+A   https://github.com/processing/processing/issues/777
+A PImage.loadPixels() shouldn't be calling out to the renderer
+A   setting image.parent = null for it makes it work again for get().save() case
+A Setting smooth(n) affects disables background in setup()
+A   https://github.com/processing/processing/issues/1452
+A P2D/P3D sketches don't get focus until clicked
+A   also problem for Java2D when canvas is used?
+A   need to standardize canvas handling
+A   https://github.com/processing/processing/issues/1700
+o warning message present
+o   Deleted 1 texture objects, 0 remaining
+A   fixed in last round
+A P2D, P3D drawing errors in static mode, gray screen
+A   https://github.com/processing/processing/issues/1648
+A Window shorter than 127 pixels high is not rendered correctly in P2D/P3D
+A   https://github.com/processing/processing/issues/1683
+A Multiple screen crash with OpenGL
+A   https://github.com/processing/processing/issues/1515
 
-decisions on data
-X are we comfortable with setInt/Float/etc instead of just set(int, blah)
-X   yes, better to have parity
-X   too weird to have to explain why getXxx() needs types and set() doesn't
-X get/set with Java's 'Map' class?
-X   really useful, but leaning toward not including it
-X   or leave it in as an advanced feature?
-X createXxx() methods less important
-X   XML.parse() - or new XML("<tag>") or new XML("tag")
-_   add parseXML() and parseJSONObject(x)
-X api note: size() used in data classes
-X   length() too confusing w/ array.length being built-in (when to use ()?)
-X   size() a bit confusing with the p5 size command, but less problematic
-o   also shorter than getCount() or getLength()
-o why not HashMap and ArrayList for JSON? 
-o   could enable loadHash() and loadArray() functions
-X   because the types coming back out would always have to be cast
-o add loadDict() and loadList() for JSON?
-o   Dict and List could be interfaces? 
-_ JSONObject.has(key) vs XML.hasAttribute(attr) vs HashMap.containsKey()
-_   and how it should be handled with hash/dict
-_   right now using hasKey().. in JSONObject
-_ add() to add things to lists, sum() for the math (sum is used less after all)
 
-_ add mouse wheel support to 2.0 event system
-X   http://code.google.com/p/processing/issues/detail?id=1423
-_   https://github.com/processing/processing/issues/1461
-X   this is fairly messy since desktop and JS behave a little differently
-o   wheel event should subclass mouse (since position still relevant)
-X     just another sub-event as part of mouse
-o   might be more effort than it's worth?
-X   peasycam uses e.getWheelRotation()
-X   js has a couple versions
-X     http://www.javascriptkit.com/javatutors/onmousewheel.shtml
-X     e.detail is 1 for 1 click up, -2 for 2 clicks down
-X     e.wheelDelta is 120 for 1 click up, -240 for two clicks down
-X   using float value (/120.0f)
-X   high-precision method grabbed if 1.7 is in use
-_   test with actual wheel mouse
-_   test on Windows
-_   add to the API docs
-_   decide on getAmount() and weirdness w/ clickCount
-_   get mouseWheel() added to api ref
-_   also added to keywords.txt
+high
+_ draw() called again before finishing on OS X (retina issue)
+_   https://github.com/processing/processing/issues/1709
+_ screen stops updating sometimes with retina
+_   https://github.com/processing/processing/issues/1699
+_ Linux sometimes not responding correctly w/ the size() command
+_   https://github.com/processing/processing/issues/1672
 
-andres
-_ P2D/P3D sketches don't get focus until click
-_   also problem for Java2D when canvas is used?
-_   need to standardize canvas handling
-
-_ remap() instead of map()
-
-_ add 'gz' as one of the loadXxx() options
-_   helps .svgz case from being weird, also generally dealing w/ compressed data
-
-_ image caches not being properly disposed (weak references broken?)
-_   http://code.google.com/p/processing/issues/detail?id=1353
-
-_ shader syntax (Andres request)
-_   might also need a define inside the shader to control what type it is
-
-more table
+table
+_ function that will convert awful CSV to TSV.. or something else?
+_   maybe to write binary instead? then read the binary file once it's ok?
+_ if loading from a File object
+_   (or PApplet is passed in and we can check online)
+_   then check the (probable) size of the file before loading
+_ no column max/min functions since it needs to be per-datatype
+_   better to use float mx = max(float(getColumn(3)));
+_   but what to do with null entries?
+_ need a method to reset the row/column indices after add/remove
+_   or just make sure that it's covered for all cases
+_ prefixes like # as comments? easy to remove?
 _ naming for these (or whether to include hash)
 _   Table createSubset() -> leave out?
 _   String[] getUnique(col) (SQL DISTINCT, sort --unique)
 _   HashMap<String,Integer> getUniqueCount(col)
-_ possible features
-_   create table from TableRow iterator...allows for subset and find
-_     downside is types are not included
-_   getMaxFloat() (whole table) or getMaxFloat(col) 
-_     that's max(getFloatColumn(n))
-_     also important b/c can leave out missing values
-_   include SQL, HTML, ODS, binary?
-_     naming HTMLTable, TableHTML (ala PShapeSVG)
-_     or should it be HTMLTable / HtmlTable... then SVGShape / SvgShape
-_   dictionary support
-_   join tables together (static is kinda gross)
-_ getColumnType() - what should it return?
-_   Integer.TYPE, String.class? still nothing for categorical
-_   maybe it's Table.INT since it's for advanced users anyway
-_   problem is loading types from file, no way to access it from code
+_ really need to get an option to grab matches based on a col
+_   i.e. get unique tables based on a particular column
+_   or, get uniques, then grab rows that match a name in a particular col
+_ create table from TableRow iterator...allows for subset and find
+_   downside is types are not included
+_ getMaxFloat() (whole table) or getMaxFloat(col) 
+_   that's max(getFloatColumn(n))
+_   also important b/c can leave out missing values
+_ dictionary support
+_ join tables together (static is kinda gross)
+_   table.append(anotherTable)?
+_   table.join(anotherTable)
 _ getInt() on categorial to return index?
 _   getCategories() and getCategory() methods to query names?
 
+data
+_ add indent= as option for XML save
+_ add indent= as option for JSON save
+_ not doing print() methods, since alternatives are more descriptive
+_   println(obj) and obj.write(System.out) are both better
+_ can we use String... for options? or does it screw up the method signature?
+_   and would we have to always concatenate arrays to prepend extensions, etc
+_ include Instant and Interval? (or just Time and TimeSpan)
+_ it's going to be File or Reader (mostly BufferedReader) everywhere
+_   though TableODS needs an InputStream... 
+_   and XML could use InputStream if we hope to be able to reflect doc encoding
+_   ok, so File, Reader, and InputStream (where needed)
+_ setMissingXxxx() -> should this live in PApplet? be static?
+_   cons: static stinks, diff tables might use diff values
+_ will also need an iterator for the Dict class ala Map.Entry
+_ using Iterable for rows(), keys(), etc
+_   generally more efficient for Table, but slower for FloatHash and IntHash
+_   could use an int array instead, but a bit hokey in places
+_ Iterable, Iterator, or [] returned for keys(), rows(), etc.
+_   list, dict, json, table are each more efficient at different things
+_   keys(), rows(), etc. should return something Iterable
+_     whether that means an array or an actual Iterator or even a Set
+_     that way we can do what's most efficient
+_   then we add keyIterator() and others to handle the other case (deletion)
+_   blogs.oracle.com/CoreJavaTechTips/entry/using_enhanced_for_loops_with
+_ means that JSON.keys() -> JSON.keyIterator(), JSON.keySet() -> JSON.keys()
+_ what should they all return? 
+_   remove -> true/false based on whether it found something?
+_   remove all -> the number removed?
+_ List: remove(), append(), index(), etc all use values
+_   removeIndex(index) is the other
+_   otherwise remove() would be the only one that dealt with indices
+_   Dict will use remove(key), so using remove(index) as default
+_     and removeValue(value) is probably used less
+_ introduce remap() instead of map() (if not deprecate?)
+_ key/valueIterator to get a version that can be removed in a loop
+_   in Table, added an Iterator function
+_ should keys() returns cropped internal array after all?
+_   right now it's making a copy (which is safer, so folks don't modify)
+_   but this means that we don't have a fast method for access
+_ methods for max, min, index of max/min entries? valueIndex?
+
 shape
+_ PShape should be cached as well
 _ major surgery to put loadShape() back into PApplet/PGraphics
 _   then have the OpenGL or Java2D versions as cached objects
 _ PShape s = createShape(); / s.beginShape(QUADS);
@@ -118,16 +163,6 @@ _   void setPath()
 _ colorCalc() methods added to PShape.. should just be used from PGraphics
 _ loadShape() needs to live in PApplet
 _ make PShapeOpenGL a cache object
-
-async requests
-Request r = createRequest("http://p5.org/feed/13134.jpg");
-Request r = createRequest("http://p5.org/feed/13134.jpg", "callbackName");
-Request r = createRequest("http://p5.org/feed/13134, "callbackName", "jpg");
-_ implement callbacks for images and other loadXxxx() functions
-_   remove requestImage() and friends
-_ callback for requestImage()
-_   http://code.google.com/p/processing/issues/detail?id=641
-_ remove/update requestImage example
 
 stop() mess
 _ in PApplet.main(), windowClosing() should probably be calling 'exit()'
@@ -186,21 +221,19 @@ _     so that it could avoid quitting if the sketch hasn't been stopped
 _     or if the sketch window is foremost
 _     maybe a hack where a new menubar is added? 
 
-_ splice() throws ClassCastException when used with objects like PVector 
-_   http://code.google.com/p/processing/issues/detail?id=1407
-
 api to be fixed/removed
 _ remove PImage.delete() and friends from PImage, Movie, etc.
 _ delete()/dispose() being used in the movie
 _ buffer sink methods in movie
 _ 'newFrame' is 'available', and ready() is part of that
-
+_ splice() throws ClassCastException when used with objects like PVector 
+_   http://code.google.com/p/processing/issues/detail?id=1407
+_ deprecate the older splice() etc API inside PApplet?
 _ wrap exceptions with die() and warn() methods
 _   this way, people can make use of exceptions if they would rather
 _   or shut them off if they don't want to 
 _   also need to explain exception handling in general
 _   http://code.google.com/p/processing/issues/detail?id=183
-
 _ bring PConstants back in line w/ previous 1.5 (can't renumber)
 
 docs (2.0)
@@ -279,13 +312,13 @@ _ change how beginRecord() works.. passing around PApplet vs PGraphics is gross
 _   have to pass PApplet just to make the rendering work to both renderers
 _   should instead be a renderer that splits things out
 
+_ add options for image.save() (or saveImage?)
+_   add quality=[0,1] for jpeg images
+_   add dpi=[0,n] for for png images
+_   implemented internally, just needs the wrapper for the args
 
-2.0 / methods
-_ decision on registered methods
-_   remove registerPre() et al
-_   add register("pause", ...) 
-_   size() should be resize(), so it can be overridden (ala pause())
-_   add PEvent
+
+2.0
 _ size() and resize() and whatever? 
 _   should be setSize(), but that's odd for image files
 _   -> resize() is fine with PImage and PGraphics... 
@@ -293,12 +326,6 @@ _   we may be inheriting the resize() from Java -> make it final?
 _   add resize().. make it call setSize().
 _     also needs to do a redraw if noLoop() has been called
 _   the registered method for size() also needs to be called
-_ need to wrap mouse/key events for p5
-_   need a version that works with both android and desktop
-_   also need to interleave events properly (as per report)
-
-
-2.0
 _ get() or copy()? for vectors, image, etc.
 _ PVector chaining -> Dan looking into this
 _ PNode.getChildren() shouldn't make a new array.. toArray() can do that
@@ -338,6 +365,7 @@ _   jer and dan will look at their code, plus toxiclibs
 _ modify PVector to include better methods for chaining operations
 _   http://code.google.com/p/processing/issues/detail?id=218
 _ add screen(PVector), model(PVector) and world(PVector)?
+_   maybe screenVec()? or screenXYZ()?
 
 decisions to make
 _ possible addition for 'implementation' variable
@@ -416,6 +444,8 @@ _   uses gluTessBeginContour and gluTessEndContour
 _   and then does 5 step sizes for each curveto
 _ show an error when using a font character that isn't available
 _   maybe fall back on other characters instead?
+_ some font weights cannot be specified/selected on OS X
+_   https://github.com/processing/processing/issues/1727
 
 
 CORE / PImage
@@ -609,6 +639,7 @@ LATER (post 2.0)
 
 _ handle repeat key events 
 _   and/or holding keys down and discerning repeats
+_   https://github.com/processing/processing/issues/1622
 _ fillMode(NONZERO) and fillMode(ODD) to replace solid(boolean)?
 _ create PVec2D and PVec3D as separate classes
 _ gui priorities
@@ -683,3 +714,13 @@ _   mostly just change the examples to not use loadPixels() anymore
 _ put a Hash<Something> class in there
 _   will this work to sort by the values?
 _   there was another concern as well..
+_ save() should probably come out of image, ja?
+_ async requests
+_   Request r = createRequest("http://p5.org/feed/13134.jpg");
+_   Request r = createRequest("http://p5.org/feed/13134.jpg", "callbackName");
+_   Request r = createRequest("http://p5.org/feed/13134, "callbackName", "jpg");
+_   implement callbacks for images and other loadXxxx() functions
+_     remove requestImage() and friends
+_   callback for requestImage()
+_     http://code.google.com/p/processing/issues/detail?id=641
+_   remove/update requestImage example

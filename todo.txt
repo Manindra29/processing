@@ -1,95 +1,64 @@
-0217 pde
-X fix MovieMaker, it was completely broken
-X   https://github.com/processing/processing/issues/1669
-X create missing parent directories when unpacking zip files
-X   fixes library problems with hemesh
+0218 pde (2.0b10 or 2.0)
+X Example window has the Java application icon
+X   https://github.com/processing/processing/issues/1800
+X in some cases, pde.jar was not getting built
+X   https://github.com/processing/processing/issues/1792
+X ignore modes folder in sketchbook listing
+X   https://github.com/processing/processing/issues/1832
+X processing-java return code is wrong (on Linux)
+X   was always returning success from Commander, also from the script
+X   https://github.com/processing/processing/issues/1798
+X OS X command line didn't have all the correct .jar files
+X   https://github.com/processing/processing/issues/1787
 
+cleaning
+X most of theme probably moves back into lib
+o   editor.bgcolor probably moves out of the theme.txt file for the mode
+o   or should it be a user preference thing
+o   for that matter, need to decide on how much modes can customize themselves
+X   make decision about where coloring is stored
+o   needs to be reset for this release, maybe others
 
-_ "New version available" mesage is showing html tags around it
-
-_ incorporate JDI changes from Manindra
-_   how does this affect Experimental? duplicate libs? loader issues?
-_ move Android mode out to its own repo
-_ move JavaScript mode out to its own repo
-_ change line endings on Windows to only be replaced during dist
-_   otherwise marks revisions.txt as changed
-
-library changes (site only?)
-_ remove netscape.javascript stuff
-_ move minim out to its own contrib section
-_ move arduino out to its own library
-
-_ remove sketch.properties when moving back to the default?
-_   or can we not do this, because the next mode needs this?
-
-_ change error message for serial re: 64-bit
-_   "To use this library, switch to 32-bit mode in Preferences." (OS X)
-_   "To use this library, you must use the 32-bit version of Processing."
-
-before release
-_ make decision about where coloring is stored
-_   needs to be reset for this release, maybe others
-
-
-2.0 FINAL / library/tool/mode manager cleanup
-
-medium
-_ Contributed modes should show up in mode menu after installation
-_   waiting for fixed CoffeeScript mode to test this one
-_   https://github.com/processing/processing/issues/1504
-X   http://code.google.com/p/processing/issues/detail?id=1466
-_ new libraries not picked up when changing sketchbook location
-_ make sure contrib manager can run w/o a network connection
-_   or if a bad document comes through, it can recover
-_ gracefully recover from proxy problems
-_   https://github.com/processing/processing/issues/1601
-_ alternating blue/white backgrounds aren't updated after changing filter
-_   just need to call a repaint() after a filter change?
-_ check with Casey about coloring for error messages
-_ test on Windows and Linux
-_ scrolls to bottom of window after updating the list
-
-low
-_ font size for "Downloading" on progress bar is too large
-_   but changing the size breaks the vertical centering
-_ highlight color seems to be incorrect?
-_ after installing, the item in the manager list doesn't change color
-_ wheel mouse is super jumpy 
-_   something about unit increment in ContributionListPanel
-_ arrow keys up/down move scroll bar, not selection
-_ excessive CPU usage of PDE after using library manager
-_   confirmed to still be a problem with b5/6
-_   https://github.com/processing/processing/issues/1074
-X   http://code.google.com/p/processing/issues/detail?id=1036
-_ move styling to separate constants that are more accessible
-
-
-2.0 FINAL / new interface
-_ most of theme probably moves back into lib
-_   editor.bgcolor probably moves out of the theme.txt file for the mode
-_   or should it be a user preference thing
-_   for that matter, need to decide on how much modes can customize themselves
-_ remove PdeKeyListener, roll it into the Java InputHandler for JEditTextArea
-_   move Java-specific InputHandler to its own subclass
-_ setModified() getting called on Windows (probably Linux) for key cmds
-
-
-2.0 FINAL / more open/save/etc
-_ blank sketch opened even if another opened by double-click
-_   http://code.google.com/p/processing/issues/detail?id=179
-_   add a 150 ms or more lag before opening the untitled window (on os x)
-_ osx not opening a sketch at all on pde double-click? (though opening the app)
-_ active editor not being set null
-_   in Base.nextEditorLocation(), changed to "editors.size() == 0" 
-_   instead of (activeEditor == null), but that's papering over a problem
-_   where the active editor is not being set null
-_ don't let people into the /tmp folder for sketches
-o   don't use tmp folder for sketches? 
-_   restrict more things like "show sketch folder"
-_   don't allow adding files w/o saving
-_   others?
-_ when creating a sketch within non-java mode, should write the settings file
-_   so that it re-loads in the proper environment
+cleaning/libraries
+o proper libraries warning dialog
+o   check if libraries folder does not exist
+o   check to see if other libraries are installed
+X   warn user about moving libraries and restarting
+X add "pretty menu name" to the export.txt file
+o move export.txt to xml? 
+X   nah, it's only flat information
+X tools -> get library
+X   library url: [ http://blahblah.org/something ]
+X   this would grab something.version, and something.zip
+X   maybe something.xml that would include a bunch of background
+X tools -> update libraries
+X   this would check the something.version to see if it's newer
+o document how to add libraries: put in sketchbook (not libraries folder)
+o library/download.url and library/home.url
+o if there's a reference subfolder, add that to the help menu
+o   and enable it for "find in reference"
+X     nice idea but too error-prone
+o java.extension.dirs has the library/extn stuff
+o   can probably set this blank
+o   example from jsyn
+JSyn Installer build 011
+java.vm.version = 1.5.0_07-87
+java.library.path = .:/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java
+java.ext.dirs = /Library/Java/Extensions:/System/Library/Java/Extensions:/System/Library/Frameworks/JavaVM.framework/Versions/1.5.0/Home/lib/ext
+Installing Native library JSynV142
+Copy: http://www.softsynth.com/jsyn/plugins/archives/libJSynV142.jnilib
+  to: /Users/fry/Library/Java/Extensions/libJSynV142.jnilib
+Native component JSynV142 downloaded successfully.
+Installing JAR file JSynClasses.jar
+Copy: http://www.softsynth.com/jsyn/plugins/archives/JSynClasses.jar
+  to: /Users/fry/Library/Java/Extensions/JSynClasses.jar
+JAR file JSynClasses.jar downloaded successfully.
+Note: you must restart your browser before running any JSyn Applets!
+Installation completed.
+o how to catch these?
+o   Exception in thread "Animation Thread" java.lang.NoClassDefFoundError: Could not initialize class javax.media.opengl.GLProfile
+o   Exception in thread "Animation Thread" java.lang.UnsatisfiedLinkError: no gluegen-rt in java.library.path
+o   cannot really.. part of the launcher
 
 
 2.0 FINAL / libraries & classpaths
@@ -104,7 +73,7 @@ _     the /Library one is empty (by default), maybe skip it?
 _ classpath conflicts also problem with PDE itself
 _   catch antlr conflicts, and put up an error message
 _   http://dev.processing.org/bugs/show_bug.cgi?id=1225 (no Google issue)
-_ when a conflicting library is found, need to report it
+_ when a conflicting library (bad link w/ core) is found, need to report it
 _   altho prolly only when it's actually different (md5hash it?)
 _   this seems to be causing a lot of trouble with recent releases
 _   (opengl changes and whatnot)
@@ -126,9 +95,6 @@ _   need to scan the .java files for imports that need to be included
 _   http://code.google.com/p/processing/issues/detail?id=459
 _ library.properties and tool.properties should reflect supported modes
 _   http://code.google.com/p/processing/issues/detail?id=1050
-_ how to catch these?
-Exception in thread "Animation Thread" java.lang.NoClassDefFoundError: Could not initialize class javax.media.opengl.GLProfile
-Exception in thread "Animation Thread" java.lang.UnsatisfiedLinkError: no gluegen-rt in java.library.path
 _ versioning info 
 _   http://java.sun.com/j2se/1.5.0/docs/guide/extensions/versioning.html
 _ java.ext.dirs for /System/Library/Java/Extensions
@@ -138,33 +104,12 @@ _   on osx, just ignore anything in /Library/Java/Extensions (but not others)?
 _ native lib stuff, use native.txt in lib folder, then:
 _   String osName = System.getProperty("os.name");
 _   String osArch = System.getProperty("os.arch");
-_ http://stackoverflow.com/questions/1611357/how-to-make-a-jar-file-that-include-dll-files
+_   http://stackoverflow.com/questions/1611357/how-to-make-a-jar-file-that-include-dll-files
 _ add control for dependencies (i.e. svg needs xml), needed for export
 _   http://code.google.com/p/processing/issues/detail?id=70
-_ add "pretty menu name" to the export.txt file
-_ move export.txt to xml? (nah, it's only flat information)
 _ need better platform designation setup for libs
 _ library installation should use the sketchbook folder, not the p5 folder
 _   actually enforce this, give users a warning about other libs
-_ java.extension.dirs has the library/extn stuff
-_   can probably set this blank
-_ the jar from which a class file has been loaded
-_   getClass().getProtectionDomain().getCodeSource().getLocation().getFile() 
-_ example from jsyn
-JSyn Installer build 011
-java.vm.version = 1.5.0_07-87
-java.library.path = .:/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java
-java.ext.dirs = /Library/Java/Extensions:/System/Library/Java/Extensions:/System/Library/Frameworks/JavaVM.framework/Versions/1.5.0/Home/lib/ext
-Installing Native library JSynV142
-Copy: http://www.softsynth.com/jsyn/plugins/archives/libJSynV142.jnilib
-  to: /Users/fry/Library/Java/Extensions/libJSynV142.jnilib
-Native component JSynV142 downloaded successfully.
-Installing JAR file JSynClasses.jar
-Copy: http://www.softsynth.com/jsyn/plugins/archives/JSynClasses.jar
-  to: /Users/fry/Library/Java/Extensions/JSynClasses.jar
-JAR file JSynClasses.jar downloaded successfully.
-Note: you must restart your browser before running any JSyn Applets!
-Installation completed.
 _ set DYLD_LIBRARY_PATH to include .dylib and other framework stuff
 _   java.library.path will only handle .jnilib stuff
 _ need better error messages for broken api / library troubles
@@ -172,39 +117,38 @@ _   e.g. ocd is broken in 0125 because of method signature changes
 _ could have library developers update compatability note
 _   so they would need to test library and say "compatible with 0110"
 _   before it would automatically update or show as an update
-_ tools -> get library
-_   library url: [ http://blahblah.org/something ]
-_   this would grab something.version, and something.zip
-_   maybe something.xml that would include a bunch of background
-_ tools -> update libraries
-_   this would check the something.version to see if it's newer
-_ document how to add libraries: put in sketchbook (not libraries folder)
-_ library/download.url and library/home.url
-_ if there's a reference subfolder, add that to the help menu
-o   and enable it for "find in reference"
-X     nice idea but too error-prone
-_ need an "install library" option to deal with urls.. oy
-_ proper libraries warning dialog
-_   check if libraries folder does not exist
-_   check to see if other libraries are installed
-_   warn user about moving libraries and restarting
+_ need an "install library" option to deal with urls..
 _ support the reference folder of contributed libraries
-_   http://code.google.com/p/processing/issues/detail?id=905
+_   add reference for contributed libraries to the Help menu
+_   https://github.com/processing/processing/issues/943
 
 
 2.0 FINAL / misc pde cleanups
 _ 'recent' menu doesn't respect examples folder of other p5 versions
+_   could write that into the file, that it's an example
+_   or write the path as shown in the PDE to the file as simpler
 _ 'recent' menu paths can get enormous
-_ add reference for contributed libraries to the Help menu
-_   http://code.google.com/p/processing/issues/detail?id=905
 _ temporary files (for sketches and logs) are not deleted
 _   http://code.google.com/p/processing/issues/detail?id=562
-
-
 _ proxy server requirement causes problems
 _   contrib manager, update checks are broken
 _   https://github.com/processing/processing/issues/1476
-X   http://code.google.com/p/processing/issues/detail?id=1438
+_ figure out Android build w/o javac so we can remove tools.jar and javac
+_   also to the p5 repo with just a JRE
+_   remove initRequirements from Base (no longer need JDI)
+_     move this into Android mode?
+_ send info on 'check for updates' so we know about libs/modes/etc?
+_   how to disclose to users?
+_   only send for items that are part of the public list 
+_     otherwise we're sending private libraries/installs
+_     although this won't pick up old libraries not on the new system
+
+
+_ move old Google Code SVN back to processing.org
+_   then cull out the old branches/tags from the Github repo
+_ UnsatisfiedLinkError causes huge message... 
+_   error report cleanups haven't been fixed yet
+_   reported by Dan
 
 
 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -299,35 +243,6 @@ _   it will be *extremely* slow, which is part of why it's not documented yet.
 _   but it will work with beginRaw().
 
 
-DOC / Discourse Board
-
-_ auto-close threads when not posted to for 30(?) days
-_ add basic guidelines for posting to the board
-_   0. be polite. going on about how much something "sucks" or is "stupid" will make you look like an eight-year-old.
-_   1. don't double (or triple) post
-_   2. if you're having trouble, first see the troubleshooting page
-_   3. if you have a bug, first search the bugs database
-_   4. first check the FAQ
-_   5. use the search bar at the top of every page
-_   6. read revisions.txt
-_ someone wrote up an initial version of this
-_ how to put [code] around blocks of code
-_   also mention contributed plugin for formatting
-_   also the reference page on the bb commands
-_ i don't answer to instant messages
-_ i don't answer email
-_ use the bugs db instead of the bugs board
-_ use the search box (not the forum search)
-_ read the faq, read the faq
-_ read the reference.. right-click on a word and choose "find in ref"
-_ non-processing posts will be deleted (not a java discussion board)
-_ no duplicate posts - find an area and post to
-_ explanation of what the areas are
-_ be sure to look at the reference, especially the extended reference
-_   questions like 'how do i do x' are often solved by looking at the api
-_   for instance, to get the framerate, use framerate()
-
-
 DOC / Other
 
 _ why adding .0001 to a float doesn't work
@@ -367,10 +282,6 @@ _   what are the necessary bits that need to be subclassed
 _   simple handling of colors, what fields are available
 _   how to get the matrices
 _   simple endshape handler
-
-
-DOC / Site
-
 _ also mention in keyPressed docs that ASCII key codes will not be coded
 _   it's just how java is (maybe this is already in there?)
 _ add note about adding libraries to the sketchbook to the reference
@@ -404,12 +315,6 @@ _   http://processing.org/discourse/yabb_beta/YaBB.cgi?board=VideoCamera;action=
 
 DOC / Hacks
 
-_ JAI handles setting image size for png (check javax.imageio?) 
-_   PNGEncodeParam png = PNGEncodeParam.getDefaultEncodeParam(bufImage);
-_   png.setPhysicalDimension(round(dpi*39.370079), round(dpi*39.370079), 1);
-_   JAI.create("filestore", bufImage, filename+".png", "PNG");
-_ also an example of setting the jpeg compression (included in bug report)
-_   http://code.google.com/p/processing/issues/detail?id=58
 _ write a timer class/example library
 _ how do i add gui to a sketch?
 _   don't use awt components
@@ -523,7 +428,23 @@ _   http://code.google.com/p/processing/issues/detail?id=8
 
 
 PDE / Editor
-
+_ don't let people into the /tmp folder for sketches
+o   don't use tmp folder for sketches? 
+_   restrict more things like "show sketch folder"
+_   don't allow adding files w/o saving
+_   others?
+_ when creating a sketch within non-Java mode, should write the settings file
+_   so that it re-loads in the proper environment
+_ remove sketch.properties when moving back to the default?
+_   or can we not do this, because it's used to set the 'next' mode
+_ add means to import .zip files from file/url into sketchbook, library, etc.
+_   super easy given current code implementation, might help usability
+_ / breaks syntax highlighting
+_   https://github.com/processing/processing/issues/1681
+_ active editor not being set null
+_   in Base.nextEditorLocation(), changed to "editors.size() == 0" 
+_   instead of (activeEditor == null), but that's papering over a problem
+_   where the active editor is not being set null
 _ the PDE uses 15% of CPU while just sitting idle
 _   https://github.com/processing/processing/issues/1561
 _ renaming RGB (.pde) to Rgb.java says "a file named RGB.pde already exists"
@@ -542,6 +463,7 @@ _ when opening from double-click on the mac, doesn't replace untitled
 _   or in general, issues between opening new window and another launching
 _   probably need to synchronize the file open methods inside Base
 _   (could in fact cause nastiness with editors[] access)
+_   https://github.com/processing/processing/issues/1745
 _ editors opening up at the same time on load?
 _   either synchronize the open (at a minimum)
 _   or wait for mac handlers to register an open event
@@ -562,6 +484,9 @@ _ sketches should only write to the console of their editor window
 _   http://code.google.com/p/processing/issues/detail?id=114
 _ problems with file/print
 _   http://code.google.com/p/processing/issues/detail?id=174
+_ remove PdeKeyListener, roll it into the Java InputHandler for JEditTextArea
+_   move Java-specific InputHandler to its own subclass
+_ setModified() getting called on Windows (probably Linux) for key cmds
 
 
 PDE / Editor Toolbar (Buttons)
@@ -642,6 +567,38 @@ _   http://code.google.com/p/processing/issues/detail?id=734
 _ see how library installation goes, then possibly do same w/ examples
 
 
+
+PDE / Manager
+
+_ Contributed modes should show up in mode menu after installation
+_   waiting for fixed CoffeeScript mode to test this one
+_   https://github.com/processing/processing/issues/1504
+X   http://code.google.com/p/processing/issues/detail?id=1466
+_ new libraries not picked up when changing sketchbook location
+_ make sure contrib manager can run w/o a network connection
+_   or if a bad document comes through, it can recover
+_ gracefully recover from proxy problems
+_   https://github.com/processing/processing/issues/1601
+_ alternating blue/white backgrounds aren't updated after changing filter
+_   just need to call a repaint() after a filter change?
+_ check with Casey about coloring for error messages
+_ test on Windows and Linux
+_ scrolls to bottom of window after updating the list
+_ font size for "Downloading" on progress bar is too large
+_   but changing the size breaks the vertical centering
+_ highlight color seems to be incorrect?
+_ after installing, the item in the manager list doesn't change color
+_ wheel mouse is super jumpy 
+_   something about unit increment in ContributionListPanel
+_ arrow keys up/down move scroll bar, not selection
+_ excessive CPU usage of PDE after using library manager
+_   confirmed to still be a problem with b5/6
+_   https://github.com/processing/processing/issues/1074
+X   http://code.google.com/p/processing/issues/detail?id=1036
+_ fonts/etc need to be set in one place where they can be edited
+_   move styling to separate constants that are more accessible
+
+
 PDE / Preferences
 
 _ the .macosx, .linux, etc prefs should be stripped
@@ -655,8 +612,9 @@ _   when are prefs saved? could instead save whenever changes are made
 _   and then if the file gets modified, it'll put up an error message
 _   also, this may be part of why other sketches aren't reloading properly
 _ control text size in console
-_   why aren't prefs from theme.txt showing up in preferences.txt? hrm
-_   or rather, why can't they be overridden? 
+o   why aren't prefs from theme.txt showing up in preferences.txt? hrm
+o   or rather, why can't they be overridden? 
+X     because theme.txt data is a different animal / that's part of the point
 _   should fonts at least be in prefs.txt?
 _   http://code.google.com/p/processing/issues/detail?id=226
 _ simple prefs implementation to set key/value pairs using a JTable
@@ -761,8 +719,6 @@ _   update will update classes from shared in the current folder
 
 TOOLS / Auto Format
 
-_ fix autoformat to indent like the p5 book/examples
-_   http://code.google.com/p/processing/issues/detail?id=325
 _ extra indent found
 _   http://code.google.com/p/processing/issues/detail?id=1003
 _ Switch block cases not indented
@@ -810,6 +766,18 @@ How the environment gets packed up, downloaded, and installed.
 
 DIST / General 
 
+_ should be able to build p5 without a JDK install, just a JRE
+_   https://github.com/processing/processing/issues/1840
+_   need to have ecj.jar accessible to ant, then modify build.xml to use this:
+_   <property name="build.compiler" 
+_             value="org.eclipse.jdt.core.JDTCompilerAdapter"/>
+_ Update Java version in the download to be the latest Java 6
+_   https://github.com/processing/processing/issues/1841
+_ line ending issues
+_   doesn't really help on Windows since we use Cygwin
+_     but it would be helpful for people not using it (ant/other LF issues)
+_   https://help.github.com/articles/dealing-with-line-endings
+_   http://stackoverflow.com/questions/170961/whats-the-best-crlf-handling-strategy-with-git
 _ add means to move changes from desktop to Android (and vice-versa)
 _ add bootclasspath for 1.6
 _   would require --install for command line on OS X
@@ -840,11 +808,11 @@ _   avoid some confusion for when describing the libraries folder to users
 
 DIST / Windows
 
-_ crash when selecting "Show Sketch Folder" with Windows 7
-_   might be a java.awt.Desktop problem
-_   http://code.google.com/p/processing/issues/detail?id=1473
+_ processing-java output as UTF-8 makes Windows unhappy
+_   https://github.com/processing/processing/issues/1633
+_ updated launch4j 3.1 beta
+_   http://sourceforge.net/projects/launch4j/files/launch4j-3/
 _ does launching p5 from inside the .zip folder cause it to quit immediately?
-_ fix line endings in revisions.txt for windows
 _ exe instead of bat to make exported apps run in 64-bit
 _   http://code.google.com/p/processing/issues/detail?id=885
 _   might not be necessary with new launch4j!
@@ -862,9 +830,18 @@ _   In regedit: Navigate to Computer\HKEY_CLASSES_ROOT\Applications and find you
 
 
 DIST / Mac OS X
-_ keep an eye on the Java 8 builds, since all the effort goes there
-_   https://wikis.oracle.com/display/OpenJDK/Mac+OS+X+Port
-_   ./jdk8/build/macosx-x86_64-normal-server-release/jdk/bin/java
+_ blank sketch opened even if another opened by double-click
+_   add a 150 ms or more lag before opening the untitled window (on os x)
+_   https://github.com/processing/processing/issues/218
+_ OS X not opening a sketch at all on pde double-click? (though opening the app)
+_ waiting on retina support for JDK 7
+_   http://bugs.sun.com/view_bug.do?bug_id=8009754
+_   b86 supposed to have some support (not available yet)
+_     http://jdk8.java.net/download.html
+_ "Are you sure you want to quit?" when switching modes on Oracle JVM
+_   because it's OS X, but menubar isn't available
+_ LWJGL forum discussion 
+_   http://lwjgl.org/forum/index.php/topic,4711.225.html
 _ change cmd line for OS X to use symlink? 
 _   otherwise updates are going to require reinstall..
 _   or that it's gonna need to parse and say "update command line?" 
@@ -968,13 +945,20 @@ Things to fix on the source code side of things.
 
 _ update license info to state gplv2 not v3
 _   add Processing Foundation as 2012
+_   https://github.com/processing/processing/issues/1777
 _ add proper copyright and license information for all included projects
 _   http://code.google.com/p/processing/issues/detail?id=185
 _   list of license issues
 _   http://code.google.com/p/processing/issues/detail?id=575
 _ Internationalization
 _   http://code.google.com/p/processing/issues/detail?id=593
-_   l10n, i18n of environment/core - Arduino pushing on this one
+_   l10n, i18n of environment/core
+_   http://docs.oracle.com/javase/tutorial/i18n/format/messageintro.html
+_   http://docs.oracle.com/javase/tutorial/i18n/format/numberFormat.html
+_   http://docs.oracle.com/javase/tutorial/i18n/format/choiceFormat.html
+_   http://docs.oracle.com/javase/tutorial/i18n/format/messageFormat.html
+_   http://docs.oracle.com/javase/7/docs/api/java/text/MessageFormat.html
+_   http://docs.oracle.com/javase/tutorial/i18n/intro/checklist.html
 _ write up code guidelines for project
 _   make proper Eclipse style prefs to reinforce
 _ write up guidelines for modes
