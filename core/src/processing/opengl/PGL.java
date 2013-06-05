@@ -196,8 +196,8 @@ public class PGL {
       REQUESTED_STENCIL_BITS = 8;
       REQUESTED_ALPHA_BITS = 8;
     } else if (PApplet.platform == PConstants.MACOSX) {
-      // NEWT solves the issues with Java 7 and OS X 10.7+: calls to frame
-      // hanging the sketch, as well as cursor, etc.
+      // Note: with the JOGL jars included in the 2.0 release (jogl-2.0-b993,
+      // gluegen-1.0-b671), the JOGL FBO layer seems incompatible with NEWT.
       WINDOW_TOOLKIT = AWT;
       EVENTS_TOOLKIT = AWT;
       USE_FBOLAYER_BY_DEFAULT = true;
@@ -206,15 +206,15 @@ public class PGL {
       REQUESTED_STENCIL_BITS = 8;
       REQUESTED_ALPHA_BITS = 8;
     } else if (PApplet.platform == PConstants.LINUX) {
-      WINDOW_TOOLKIT = AWT; // AWT extremely broken on Linux? With jogl-2.0-b993
-      EVENTS_TOOLKIT = AWT; // appears not.
+      WINDOW_TOOLKIT = AWT;
+      EVENTS_TOOLKIT = AWT;
       USE_FBOLAYER_BY_DEFAULT = false;
       USE_JOGL_FBOLAYER = false;
       REQUESTED_DEPTH_BITS = 24;
       REQUESTED_STENCIL_BITS = 8;
       REQUESTED_ALPHA_BITS = 8;
     } else if (PApplet.platform == PConstants.OTHER) {
-      WINDOW_TOOLKIT = NEWT; // NEWT should work on the Raspberry pi
+      WINDOW_TOOLKIT = NEWT; // NEWT works on the Raspberry pi?
       EVENTS_TOOLKIT = NEWT;
       USE_FBOLAYER_BY_DEFAULT = false;
       USE_JOGL_FBOLAYER = false;
@@ -561,6 +561,8 @@ public class PGL {
 
       pg.parent.setLayout(new BorderLayout());
       pg.parent.add(canvasAWT, BorderLayout.CENTER);
+      canvasAWT.requestFocusInWindow();
+
       pg.parent.removeListeners(pg.parent);
       pg.parent.addListeners(canvasAWT);
 
@@ -569,8 +571,6 @@ public class PGL {
 
       listener = new PGLListener();
       canvasAWT.addGLEventListener(listener);
-
-      canvasAWT.requestFocus();
     } else if (WINDOW_TOOLKIT == NEWT) {
       window = GLWindow.create(caps);
       if (sharedCtx != null) {
@@ -583,6 +583,7 @@ public class PGL {
 
       pg.parent.setLayout(new BorderLayout());
       pg.parent.add(canvasNEWT, BorderLayout.CENTER);
+      canvasNEWT.requestFocusInWindow();
 
       if (EVENTS_TOOLKIT == NEWT) {
         NEWTMouseListener mouseListener = new NEWTMouseListener();
@@ -601,8 +602,6 @@ public class PGL {
 
       listener = new PGLListener();
       window.addGLEventListener(listener);
-
-      canvasNEWT.requestFocus();
     }
 
     fboLayerCreated = false;
@@ -1131,6 +1130,13 @@ public class PGL {
     }
     if (currentFps < targetFps/2) {
       finish();
+    }
+  }
+
+
+  protected void requestFocus() {
+    if (canvas != null) {
+      canvas.requestFocus();
     }
   }
 
@@ -2583,6 +2589,7 @@ public class PGL {
           GLWindow glWindow = (GLWindow)glDrawable;
           fboDrawable = (GLFBODrawable)glWindow.getDelegatedDrawable();
         }
+
         if (fboDrawable != null) {
           backFBO = fboDrawable.getFBObject(GL.GL_BACK);
           if (1 < numSamples) {
