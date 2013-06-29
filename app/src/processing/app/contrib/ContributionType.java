@@ -118,7 +118,7 @@ public enum ContributionType {
    * contribution type. For instance, a list of folders that have a 'mode'
    * subfolder if this is a ModeContribution.
    */
-  File[] listCandidates(File folder) {System.out.println(folder);
+  File[] listCandidates(File folder) {
     return folder.listFiles(new FileFilter() {
       public boolean accept(File potential) {
         return isCandidate(potential);

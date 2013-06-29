@@ -71,7 +71,6 @@ public class ToolContribution extends LocalContribution implements Tool {
   static public ArrayList<ToolContribution> loadAll(File toolsFolder) {
     File[] list = ContributionType.TOOL.listCandidates(toolsFolder);
     ArrayList<ToolContribution> outgoing = new ArrayList<ToolContribution>();
-    if(list!=null)
     for (File folder : list) {
       try {
         ToolContribution tc = load(folder);
